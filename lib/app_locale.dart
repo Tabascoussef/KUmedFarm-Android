@@ -1,0 +1,462 @@
+import 'package:flutter/material.dart';
+
+enum AppLanguage {
+  uz('O\'zbekcha', '🇺🇿', 'uz'),
+  ru('Русский', '🇷🇺', 'ru'),
+  en('English', '🇬🇧', 'en');
+
+  final String name;
+  final String flag;
+  final String code;
+  const AppLanguage(this.name, this.flag, this.code);
+}
+
+final ValueNotifier<AppLanguage> languageNotifier = ValueNotifier(AppLanguage.uz);
+
+class S {
+  static AppLanguage get lang => languageNotifier.value;
+
+  static void setLanguage(AppLanguage language) {
+    languageNotifier.value = language;
+  }
+
+  static String get(String key) {
+    final map = _translations[lang] ?? _translations[AppLanguage.uz]!;
+    return map[key] ?? _translations[AppLanguage.uz]![key] ?? key;
+  }
+
+  static final Map<AppLanguage, Map<String, String>> _translations = {
+    // ==========================================
+    // UZBEK
+    // ==========================================
+    AppLanguage.uz: {
+      // Bottom Navigation
+      'nav_home': 'Asosiy',
+      'nav_map': 'Xarita',
+      'nav_shop': "Do'kon",
+      'nav_notifications': 'Xabarlar',
+      'nav_profile': 'Profil',
+
+      // Dashboard
+      'greeting_morning': 'Xayrli tong',
+      'search_placeholder': 'Dori vositalari, dorixona izlash...',
+      'hero_eyebrow': 'SIZNING SALOMATLIK YORDAMCHINGIZ',
+      'hero_title': 'Sizga qanday\nyordam beraylik?',
+      'hero_subtitle': 'Ishonchli g\'amxo\'rlik, tabassum bilan.',
+      'hero_explore': 'Xizmatlarni ko\'rish',
+      'quick_access': 'Tezkor xizmatlar',
+      'view_all': 'Barchasi',
+      'action_prescription': 'Retseptlar',
+      'action_prescription_sub': 'Elektron buyurtma',
+      'action_pharmacies': 'Dorixonalar',
+      'action_pharmacies_sub': 'Yaqin manzillar',
+      'action_delivery': 'Tez yetkazish',
+      'action_delivery_sub': 'Kuryer xizmati',
+      'action_doctor': 'Shifokor',
+      'action_doctor_sub': 'Onlayn konsultatsiya',
+      'daily_deals': 'Kunlik aksiyalar',
+      'shop_now': 'Xarid qilish',
+      'deal_1_title': 'Kunlik vositalar',
+      'deal_1_sub': 'Barcha vitaminlarga chegirmalar',
+      'deal_2_title': 'Yurak salomatligi',
+      'deal_2_sub': 'Kardiologik preparatlar',
+      'deal_3_title': 'Sokin uyqu',
+      'deal_3_sub': 'Tabiiy sedativ vositalar',
+      'featured_pharmacy': 'Yaqin dorixona',
+      'open_24_7': '24/7 OCHIQ',
+      'start_route': 'Marshrutni boshlash',
+      'daily_health_tip': 'Salomatlik maslahati',
+      'health_tip_body': 'Kuniga 15-20 daqiqa piyoda sayr qilish qon bosimini me\'yorda tutadi va kayfiyatni ko\'taradi.',
+
+      // Shop
+      'shop_store': 'KUMEFARM DO\'KONI',
+      'shop_essentials': 'Salomatlik vositalari',
+      'cat_all': 'Barchasi',
+      'cat_vitamins': 'Vitaminlar',
+      'cat_pain': 'Og\'riq qoldiruvchi',
+      'cat_antibiotics': 'Antibiotiklar',
+      'cat_kids': 'Bolalar uchun',
+      'cat_supplements': 'Qo\'shimchalar',
+      'in_stock': 'Mavjud',
+      'prescription_required': 'Retseptli',
+
+      // Cart & Checkout
+      'cart_title': 'Savatcha',
+      'cart_empty_title': 'Savatchangiz bo\'sh',
+      'cart_empty_sub': 'Do\'kondan o\'zingizga kerakli dori va vitaminlarni tanlang',
+      'cart_items_count': 'mahsulot',
+      'cart_subtotal': 'Mahsulotlar summasi',
+      'cart_delivery': 'Yetkazib berish',
+      'cart_delivery_free': 'Bepul',
+      'cart_discount': 'Chegirma',
+      'cart_total': 'Jami to\'lov',
+      'cart_promo_code': 'Promokod yoki kupon',
+      'cart_apply': 'Qo\'llash',
+      'cart_checkout': 'Rasmiylashtirish',
+      'checkout_title': 'Buyurtmani rasmiylashtirish',
+      'checkout_address': 'Yetkazib berish manzili',
+      'checkout_address_hint': 'Shahar, tuman, ko\'cha va uy raqami',
+      'checkout_phone': 'Aloqa uchun telefon',
+      'checkout_payment': 'To\'lov usuli',
+      'checkout_payment_cash': 'Qabul qilganda naqd / karta',
+      'checkout_payment_payme': 'Payme',
+      'checkout_payment_click': 'Click',
+      'checkout_delivery_time': 'Yetkazish vaqti',
+      'checkout_time_fast': 'Tezkor (30-45 daqiqa)',
+      'checkout_time_standard': 'Bugun kechki vaqtda',
+      'checkout_notes': 'Kuryer uchun izoh (ixtiyoriy)',
+      'checkout_confirm_btn': 'Buyurtmani tasdiqlash',
+      'checkout_success_title': 'Buyurtma qabul qilindi!',
+      'checkout_success_desc': 'Buyurtmangiz muvaffaqiyatli rasmiylashtirildi va navbatchi dorixonaga yuborildi.',
+      'checkout_back_home': 'Bosh sahifaga qaytish',
+
+      // Map
+      'map_nearby': 'Yaqin dorixonalar',
+      'map_stores_count': 'Atrofingizda 12 ta dorixona',
+      'distance': 'Masofa',
+      'open_hours': 'Ish vaqti',
+      'rating': 'Reyting',
+      'open_until': '22:00 GACHA OCHIQ',
+
+      // Alerts
+      'alerts_eyebrow': 'XABARDOR BO\'LING',
+      'notifications': 'Bildirishnomalar',
+      'read_all': 'Barchasini o\'qish',
+      'today': 'Bugun',
+      'mark_as_taken': 'Qabul qilindi',
+      'taken': 'Qabul qilingan',
+      'dismiss': 'O\'chirish',
+      'all_read_toast': 'Barcha bildirishnomalar o\'qilgan deb belgilandi',
+
+      // Profile & Analytics
+      'profile_eyebrow': 'SIZNING PROFILINGIZ',
+      'profile_title': 'Profil va Analitika',
+      'tab_profile': 'Profil & Sozlamalar',
+      'tab_analytics': 'Analitika & Hisobot',
+      'edit': 'Tahrirlash',
+      'health_overview': 'Salomatlik holati',
+      'stat_prescriptions': 'Retseptlar',
+      'stat_orders': 'Buyurtmalar',
+      'stat_saved': 'Saqlanganlar',
+      'stat_reminders': 'Eslatmalar',
+      'settings_pref': 'Sozlamalar va xizmatlar',
+      'language': 'Ilova tili',
+      'security': 'Xavfsizlik & Kirish',
+      'help_support': 'Yordam va qo\'llab-quvvatlash',
+      'logout': 'Tizimdan chiqish',
+      'logout_confirm_title': 'Tizimdan chiqishni xohlaysizmi?',
+      'logout_confirm_desc': 'Joriy sessiya yakunlanadi va qayta kirish talab qilinadi.',
+      'cancel': 'Bekor qilish',
+      'save_changes': 'Saqlash',
+
+      // Analytics Tab Keys
+      'analytics_title': 'Biznes va Faoliyat Ko\'rsatkichlari',
+      'kpi_plan': 'Oylik reja',
+      'kpi_plan_value': '84%',
+      'kpi_visits': 'Tashriflar',
+      'kpi_visits_value': '45 ta',
+      'kpi_orders': 'Dorixona buyurtmalari',
+      'kpi_orders_value': '38 ta',
+      'kpi_turnover': 'Jami aylanma',
+      'kpi_turnover_value': '18.4 mln so\'m',
+      'weekly_visits_title': 'Haftalik tashriflar dinamikasi',
+      'pharmacy_monitoring_title': 'Dorixonalar monitoringi',
+      'download_pdf_btn': 'Oylik tahliliy hisobotni yuklab olish (PDF)',
+      'pdf_downloading_toast': 'Tahliliy PDF hisobot tayyorlanmoqda va yuklanmoqda...',
+      'pharmacy_1_status': 'Faol hamkorlik · 98% reja',
+      'pharmacy_2_status': 'Zaxira yetarli · 86% reja',
+      'pharmacy_3_status': 'Yangi shartnoma · 74% reja',
+      'pharmacy_4_status': 'Monitoringda · 91% reja',
+    },
+
+    // ==========================================
+    // RUSSIAN
+    // ==========================================
+    AppLanguage.ru: {
+      // Bottom Navigation
+      'nav_home': 'Главная',
+      'nav_map': 'Карта',
+      'nav_shop': 'Магазин',
+      'nav_notifications': 'Уведомления',
+      'nav_profile': 'Профиль',
+
+      // Dashboard
+      'greeting_morning': 'Доброе утро',
+      'search_placeholder': 'Поиск лекарств, аптек...',
+      'hero_eyebrow': 'ВАШ ПОМОЩНИК ЗДОРОВЬЯ',
+      'hero_title': 'Чем мы можем\nвам помочь?',
+      'hero_subtitle': 'Надежная забота, доставленная с улыбкой.',
+      'hero_explore': 'Все сервисы',
+      'quick_access': 'Быстрый доступ',
+      'view_all': 'Все',
+      'action_prescription': 'Рецепты',
+      'action_prescription_sub': 'Электронный заказ',
+      'action_pharmacies': 'Аптеки',
+      'action_pharmacies_sub': 'Ближайшие адреса',
+      'action_delivery': 'Быстрая доставка',
+      'action_delivery_sub': 'Курьерская служба',
+      'action_doctor': 'Врач',
+      'action_doctor_sub': 'Онлайн консультация',
+      'daily_deals': 'Акции дня',
+      'shop_now': 'Купить сейчас',
+      'deal_1_title': 'Ежедневные средства',
+      'deal_1_sub': 'Скидки на все витамины',
+      'deal_2_title': 'Здоровье сердца',
+      'deal_2_sub': 'Кардиологические препараты',
+      'deal_3_title': 'Крепкий сон',
+      'deal_3_sub': 'Натуральные седативные средства',
+      'featured_pharmacy': 'Ближайшая аптека',
+      'open_24_7': 'ОТКРЫТО 24/7',
+      'start_route': 'Построить маршрут',
+      'daily_health_tip': 'Совет дня для здоровья',
+      'health_tip_body': 'Ежедневная 15-минутная прогулка укрепляет сердечно-сосудистую систему и улучшает самочувствие.',
+
+      // Shop
+      'shop_store': 'МАГАЗИН KUMEFARM',
+      'shop_essentials': 'Товары для здоровья',
+      'cat_all': 'Все',
+      'cat_vitamins': 'Витамины',
+      'cat_pain': 'Обезболивающие',
+      'cat_antibiotics': 'Антибиотики',
+      'cat_kids': 'Детские',
+      'cat_supplements': 'Добавки',
+      'in_stock': 'В наличии',
+      'prescription_required': 'По рецепту',
+
+      // Cart & Checkout
+      'cart_title': 'Корзина',
+      'cart_empty_title': 'Ваша корзина пуста',
+      'cart_empty_sub': 'Добавьте нужные лекарства и витамины из каталога',
+      'cart_items_count': 'товаров',
+      'cart_subtotal': 'Сумма товаров',
+      'cart_delivery': 'Доставка',
+      'cart_delivery_free': 'Бесплатно',
+      'cart_discount': 'Скидка',
+      'cart_total': 'Итого к оплате',
+      'cart_promo_code': 'Промокод или купон',
+      'cart_apply': 'Применить',
+      'cart_checkout': 'Оформить заказ',
+      'checkout_title': 'Оформление заказа',
+      'checkout_address': 'Адрес доставки',
+      'checkout_address_hint': 'Город, улица, дом, квартира',
+      'checkout_phone': 'Контактный телефон',
+      'checkout_payment': 'Способ оплаты',
+      'checkout_payment_cash': 'При получении (наличные/карта)',
+      'checkout_payment_payme': 'Payme',
+      'checkout_payment_click': 'Click',
+      'checkout_delivery_time': 'Время доставки',
+      'checkout_time_fast': 'Экспресс (30-45 мин)',
+      'checkout_time_standard': 'Сегодня вечером',
+      'checkout_notes': 'Комментарий для курьера',
+      'checkout_confirm_btn': 'Подтвердить заказ',
+      'checkout_success_title': 'Заказ успешно оформлен!',
+      'checkout_success_desc': 'Ваш заказ принят и передан в ближайшую дежурную аптеку.',
+      'checkout_back_home': 'На главную',
+
+      // Map
+      'map_nearby': 'Ближайшие аптеки',
+      'map_stores_count': '12 аптек рядом с вами',
+      'distance': 'Расстояние',
+      'open_hours': 'Режим работы',
+      'rating': 'Рейтинг',
+      'open_until': 'ОТКРЫТО ДО 22:00',
+
+      // Alerts
+      'alerts_eyebrow': 'БУДЬТЕ В КУРСЕ',
+      'notifications': 'Уведомления',
+      'read_all': 'Прочитать все',
+      'today': 'Сегодня',
+      'mark_as_taken': 'Принять',
+      'taken': 'Принято',
+      'dismiss': 'Удалить',
+      'all_read_toast': 'Все уведомления отмечены как прочитанные',
+
+      // Profile & Analytics
+      'profile_eyebrow': 'ВАШ АККАУНТ',
+      'profile_title': 'Профиль и Аналитика',
+      'tab_profile': 'Профиль и Настройки',
+      'tab_analytics': 'Аналитика и Отчеты',
+      'edit': 'Изменить',
+      'health_overview': 'Обзор здоровья',
+      'stat_prescriptions': 'Рецепты',
+      'stat_orders': 'Заказы',
+      'stat_saved': 'Избранное',
+      'stat_reminders': 'Напоминания',
+      'settings_pref': 'Настройки и предпочтения',
+      'language': 'Язык приложения',
+      'security': 'Безопасность и Вход',
+      'help_support': 'Помощь и поддержка',
+      'logout': 'Выйти из системы',
+      'logout_confirm_title': 'Вы действительно хотите выйти?',
+      'logout_confirm_desc': 'Текущий сеанс завершится, для повторного входа потребуется авторизация.',
+      'cancel': 'Отмена',
+      'save_changes': 'Сохранить',
+
+      // Analytics Tab Keys
+      'analytics_title': 'Показатели Бизнеса и Деятельности',
+      'kpi_plan': 'Месячный план',
+      'kpi_plan_value': '84%',
+      'kpi_visits': 'Визиты',
+      'kpi_visits_value': '45',
+      'kpi_orders': 'Аптечные заказы',
+      'kpi_orders_value': '38',
+      'kpi_turnover': 'Общий оборот',
+      'kpi_turnover_value': '18.4 млн сум',
+      'weekly_visits_title': 'Динамика визитов за неделю',
+      'pharmacy_monitoring_title': 'Мониторинг аптек',
+      'download_pdf_btn': 'Скачать аналитический PDF отчет',
+      'pdf_downloading_toast': 'Формирование и загрузка PDF отчета...',
+      'pharmacy_1_status': 'Активное сотрудничество · 98% плана',
+      'pharmacy_2_status': 'Остатки в норме · 86% плана',
+      'pharmacy_3_status': 'Новый контракт · 74% плана',
+      'pharmacy_4_status': 'На мониторинге · 91% плана',
+    },
+
+    // ==========================================
+    // ENGLISH
+    // ==========================================
+    AppLanguage.en: {
+      // Bottom Navigation
+      'nav_home': 'Home',
+      'nav_map': 'Map',
+      'nav_shop': 'Shop',
+      'nav_notifications': 'Alerts',
+      'nav_profile': 'Profile',
+
+      // Dashboard
+      'greeting_morning': 'Good morning',
+      'search_placeholder': 'Search medicines, pharmacies...',
+      'hero_eyebrow': 'YOUR HEALTH ASSISTANT',
+      'hero_title': 'How can we\nhelp you today?',
+      'hero_subtitle': 'Trusted care, delivered with a smile.',
+      'hero_explore': 'Explore services',
+      'quick_access': 'Quick access',
+      'view_all': 'View all',
+      'action_prescription': 'Prescription',
+      'action_prescription_sub': 'Digital refills',
+      'action_pharmacies': 'Pharmacies',
+      'action_pharmacies_sub': 'Nearest stores',
+      'action_delivery': 'Rapid delivery',
+      'action_delivery_sub': 'Courier dispatch',
+      'action_doctor': 'Ask a doctor',
+      'action_doctor_sub': 'Online consultation',
+      'daily_deals': 'Daily deals',
+      'shop_now': 'Shop now',
+      'deal_1_title': 'Daily essentials',
+      'deal_1_sub': 'Discount on all daily vitamins',
+      'deal_2_title': 'Care for your heart',
+      'deal_2_sub': 'Cardiology essentials',
+      'deal_3_title': 'Better sleep',
+      'deal_3_sub': 'Natural sleep aids & care',
+      'featured_pharmacy': 'Nearby pharmacy',
+      'open_24_7': 'OPEN 24/7',
+      'start_route': 'Start route',
+      'daily_health_tip': 'Daily health tip',
+      'health_tip_body': 'A 15-minute daily walk can improve cardiovascular health and boost your overall mood.',
+
+      // Shop
+      'shop_store': 'KUMEFARM STORE',
+      'shop_essentials': 'Health essentials',
+      'cat_all': 'All',
+      'cat_vitamins': 'Vitamins',
+      'cat_pain': 'Pain relief',
+      'cat_antibiotics': 'Antibiotics',
+      'cat_kids': 'Kids care',
+      'cat_supplements': 'Supplements',
+      'in_stock': 'In stock',
+      'prescription_required': 'Prescription',
+
+      // Cart & Checkout
+      'cart_title': 'Shopping Cart',
+      'cart_empty_title': 'Your cart is empty',
+      'cart_empty_sub': 'Add medicines and vitamins you need from the catalog',
+      'cart_items_count': 'items',
+      'cart_subtotal': 'Subtotal',
+      'cart_delivery': 'Delivery fee',
+      'cart_delivery_free': 'Free',
+      'cart_discount': 'Discount',
+      'cart_total': 'Total amount',
+      'cart_promo_code': 'Promo code or coupon',
+      'cart_apply': 'Apply',
+      'cart_checkout': 'Proceed to Checkout',
+      'checkout_title': 'Checkout Order',
+      'checkout_address': 'Delivery address',
+      'checkout_address_hint': 'City, street, building, apartment',
+      'checkout_phone': 'Contact phone number',
+      'checkout_payment': 'Payment method',
+      'checkout_payment_cash': 'Cash or card on delivery',
+      'checkout_payment_payme': 'Payme',
+      'checkout_payment_click': 'Click',
+      'checkout_delivery_time': 'Delivery time',
+      'checkout_time_fast': 'Express (30-45 mins)',
+      'checkout_time_standard': 'This evening',
+      'checkout_notes': 'Note for courier (optional)',
+      'checkout_confirm_btn': 'Confirm & Place Order',
+      'checkout_success_title': 'Order Placed Successfully!',
+      'checkout_success_desc': 'Your order has been verified and dispatched to the nearest pharmacy.',
+      'checkout_back_home': 'Back to Home',
+
+      // Map
+      'map_nearby': 'Nearby pharmacies',
+      'map_stores_count': '12 stores around you',
+      'distance': 'Distance',
+      'open_hours': 'Open hours',
+      'rating': 'Rating',
+      'open_until': 'OPEN UNTIL 22:00',
+
+      // Alerts
+      'alerts_eyebrow': 'STAY UPDATED',
+      'notifications': 'Notifications',
+      'read_all': 'Read all',
+      'today': 'Today',
+      'mark_as_taken': 'Mark as taken',
+      'taken': 'Taken',
+      'dismiss': 'Dismiss',
+      'all_read_toast': 'All notifications marked as read',
+
+      // Profile & Analytics
+      'profile_eyebrow': 'YOUR ACCOUNT',
+      'profile_title': 'Profile & Analytics',
+      'tab_profile': 'Profile & Settings',
+      'tab_analytics': 'Analytics & Reports',
+      'edit': 'Edit',
+      'health_overview': 'Health Overview',
+      'stat_prescriptions': 'Prescriptions',
+      'stat_orders': 'Orders',
+      'stat_saved': 'Saved Items',
+      'stat_reminders': 'Reminders',
+      'settings_pref': 'Settings & Preferences',
+      'language': 'App Language',
+      'security': 'Security & Biometrics',
+      'help_support': 'Help & Support',
+      'logout': 'Log Out',
+      'logout_confirm_title': 'Do you want to log out?',
+      'logout_confirm_desc': 'Your session will be closed and credentials required to log in again.',
+      'cancel': 'Cancel',
+      'save_changes': 'Save Changes',
+
+      // Analytics Tab Keys
+      'analytics_title': 'Business & Performance Metrics',
+      'kpi_plan': 'Monthly Plan',
+      'kpi_plan_value': '84%',
+      'kpi_visits': 'Total Visits',
+      'kpi_visits_value': '45',
+      'kpi_orders': 'Pharmacy Orders',
+      'kpi_orders_value': '38',
+      'kpi_turnover': 'Total Turnover',
+      'kpi_turnover_value': '18.4M UZS',
+      'weekly_visits_title': 'Weekly Visit Trends',
+      'pharmacy_monitoring_title': 'Pharmacy Monitoring',
+      'download_pdf_btn': 'Download Monthly PDF Report',
+      'pdf_downloading_toast': 'Generating and downloading analytical PDF report...',
+      'pharmacy_1_status': 'Active partner · 98% target',
+      'pharmacy_2_status': 'Sufficient stock · 86% target',
+      'pharmacy_3_status': 'New contract · 74% target',
+      'pharmacy_4_status': 'Under review · 91% target',
+    },
+  };
+}
+
+extension LocalizationX on BuildContext {
+  String tr(String key) => S.get(key);
+}
