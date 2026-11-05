@@ -44,7 +44,6 @@ class _SplashScreenState extends State<SplashScreen>
     with SingleTickerProviderStateMixin {
   late final AnimationController _anim;
   bool _hasNavigated = false;
-  bool _isStarted = false;
 
   // Exact total timeline: 4800ms
   static const int _totalMs = 4800;
@@ -63,17 +62,7 @@ class _SplashScreenState extends State<SplashScreen>
       }
     });
 
-    // Wait for Android window surface to finish mounting and drawing first frame,
-    // so the animation starts strictly at frame 0 and the user sees the entire beginning!
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      Future.delayed(const Duration(milliseconds: 200), () {
-        if (mounted && !_isStarted) {
-          _isStarted = true;
-          _anim.forward(from: 0.0);
-        }
-      });
-    });
+    _anim.forward();
   }
 
   void _navigateToNext() {
@@ -139,14 +128,14 @@ class _SplashScreenState extends State<SplashScreen>
           builder: (context, _) {
             final ms = _anim.value * _totalMs;
 
-          // 1. Ambient Glows (starts at 200ms, fades in over 1500ms)
-          final ambientOpacity = ((ms - 200) / 1500).clamp(0.0, 1.0);
+          // 1. Ambient Glows (starts immediately at 0ms, smooth fade-in)
+          final ambientOpacity = (ms / 1000).clamp(0.0, 1.0);
 
-          // 2. ECG line progress (1050ms to 2350ms)
+          // 2. ECG line progress (starts actively at 300ms to 2000ms)
           double ecgProgress = 0.0;
           double ecgOpacity = 0.0;
-          if (ms >= 1050 && ms <= 2350) {
-            final t = (ms - 1050) / 1300;
+          if (ms >= 300 && ms <= 2000) {
+            final t = (ms - 300) / 1700;
             if (t <= 0.15) {
               ecgOpacity = t / 0.15;
             } else if (t <= 0.75) {
@@ -158,11 +147,11 @@ class _SplashScreenState extends State<SplashScreen>
             ecgProgress = const Cubic(0.65, 0.0, 0.35, 1.0).transform(drawT);
           }
 
-          // 3. Text copy (0.5s - 1.2s in, 2.5s - 2.9s out)
+          // 3. Text copy (starts at 150ms in, 2.5s - 2.9s out)
           double copyOpacity = 0.0;
           double copyTranslateY = 0.0;
-          if (ms >= 500 && ms < 2500) {
-            final tIn = ((ms - 500) / 700).clamp(0.0, 1.0);
+          if (ms >= 150 && ms < 2500) {
+            final tIn = ((ms - 150) / 600).clamp(0.0, 1.0);
             copyOpacity = Curves.easeOut.transform(tIn);
             copyTranslateY = 8.0 * (1.0 - copyOpacity);
           } else if (ms >= 2500 && ms <= 2900) {

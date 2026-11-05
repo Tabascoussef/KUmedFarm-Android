@@ -3,10 +3,12 @@ import 'dart:math' as math;
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'app_locale.dart';
 import 'cart_screen.dart';
 import 'services/api_service.dart';
 import 'services/cart_service.dart';
+import 'services/location_service.dart';
 import 'theme.dart';
 
 class DashboardScreen extends StatefulWidget {
@@ -140,10 +142,18 @@ class _DashboardScreenState extends State<DashboardScreen> {
     },
   ];
 
+  List<Map<String, dynamic>> _livePharmacies = [];
+
   @override
   void initState() {
     super.initState();
     _loadDashboardFromApi();
+    LocationService.instance.detectCurrentLocation().then((loc) {
+      if (mounted) {
+        _loadRealPharmacies(loc.latitude, loc.longitude);
+      }
+    });
+    LocationService.instance.currentLocation.addListener(_onDashboardLocationChanged);
     _dealTimer = Timer.periodic(const Duration(milliseconds: 3800), (t) {
       if (!mounted || !_dealPageController.hasClients) return;
       final next = (_activeDealIndex + 1) % _deals.length;
@@ -157,9 +167,28 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   @override
   void dispose() {
+    LocationService.instance.currentLocation.removeListener(_onDashboardLocationChanged);
     _dealTimer?.cancel();
     _dealPageController.dispose();
     super.dispose();
+  }
+
+  void _onDashboardLocationChanged() {
+    final loc = LocationService.instance.currentLocation.value;
+    if (loc != null && mounted) {
+      _loadRealPharmacies(loc.latitude, loc.longitude);
+    }
+  }
+
+  void _loadRealPharmacies(double lat, double lng) async {
+    try {
+      final list = await LocationService.instance.fetchRealPharmaciesFromMap(lat, lng);
+      if (mounted && list.isNotEmpty) {
+        setState(() {
+          _livePharmacies = list;
+        });
+      }
+    } catch (_) {}
   }
 
   Future<void> _loadDashboardFromApi() async {
@@ -579,6 +608,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
               // 5. Exact Daily Deals Carousel (3 deals)
               _buildDailyDealsSection(),
+
+              const SizedBox(height: 24),
+
+              // 6. Nearest Pharmacies Section (Eng yaqin dorixonalar)
+              _buildNearestPharmaciesSection(p),
+
+              const SizedBox(height: 32),
             ],
           ),
         ),
@@ -591,7 +627,23 @@ class _DashboardScreenState extends State<DashboardScreen> {
   // ===========================================================================
   Widget _buildFigmaHeader(Palette p) {
     final user = ApiService.instance.currentUser;
-    final userName = user?['name']?.toString() ?? 'Aziza Usmanova';
+    final rawName = user?['name']?.toString() ?? 'Aziza Usmanova';
+    final cleaned = rawName
+        .replaceAll('(Offline rejim)', '')
+        .replaceAll('(offline rejim)', '')
+        .replaceAll('(offline)', '')
+        .trim();
+    final userName = (cleaned == 'KUmedFarm Admin' || cleaned.isEmpty)
+        ? 'Aziza Usmanova'
+        : cleaned;
+
+    String initials = 'AU';
+    final parts = userName.split(RegExp(r'\s+'));
+    if (parts.length >= 2) {
+      initials = (parts[0][0] + parts[1][0]).toUpperCase();
+    } else if (parts.isNotEmpty && parts[0].isNotEmpty) {
+      initials = parts[0].substring(0, parts[0].length >= 2 ? 2 : 1).toUpperCase();
+    }
 
     return Row(
       crossAxisAlignment: CrossAxisAlignment.center,
@@ -615,7 +667,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 ),
                 child: Center(
                   child: Text(
-                    'AU',
+                    initials,
                     style: GoogleFonts.dmSans(
                       fontSize: 12,
                       fontWeight: FontWeight.w700,
@@ -666,6 +718,50 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   fontWeight: FontWeight.w700,
                   color: const Color(0xFF173C43),
                 ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+              const SizedBox(height: 2),
+              // Live GPS Location Indicator
+              ValueListenableBuilder<UserLocation?>(
+                valueListenable: LocationService.instance.currentLocation,
+                builder: (context, loc, _) {
+                  final text = loc?.shortAddress ?? 'Joylashuv aniqlanmoqda...';
+                  return GestureDetector(
+                    onTap: () {
+                      LocationService.instance.detectCurrentLocation(force: true);
+                      widget.onOpenMap?.call();
+                    },
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(
+                          CupertinoIcons.location_solid,
+                          size: 11,
+                          color: Color(0xFF0E9B83),
+                        ),
+                        const SizedBox(width: 3),
+                        Flexible(
+                          child: Text(
+                            text,
+                            style: GoogleFonts.dmSans(
+                              fontSize: 10.5,
+                              fontWeight: FontWeight.w600,
+                              color: const Color(0xFF0E8F7D),
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        const Icon(
+                          Icons.chevron_right_rounded,
+                          size: 13,
+                          color: Color(0xFF0E8F7D),
+                        ),
+                      ],
+                    ),
+                  );
+                },
               ),
             ],
           ),
@@ -1311,6 +1407,379 @@ class _DashboardScreenState extends State<DashboardScreen> {
       ],
     );
   }
+
+  // ===========================================================================
+  // 6. NEAREST PHARMACIES SECTION (Eng yaqin dorixonalar)
+  // ===========================================================================
+  Widget _buildNearestPharmaciesSection(Palette p) {
+    return ValueListenableBuilder<UserLocation?>(
+      valueListenable: LocationService.instance.currentLocation,
+      builder: (context, userLoc, _) {
+        final double userLat = userLoc?.latitude ?? 41.3111;
+        final double userLng = userLoc?.longitude ?? 69.2797;
+
+        final List<Map<String, dynamic>> sourceList = _livePharmacies.isNotEmpty
+            ? _livePharmacies
+            : LocationService.verifiedTashkentPharmacies;
+
+        // Compute distances dynamically from real user location
+        final List<Map<String, dynamic>> sortedList = sourceList.map((item) {
+          final meters = LocationService.instance.calculateDistance(
+            userLat,
+            userLng,
+            item['lat'] as double,
+            item['lng'] as double,
+          );
+          return {
+            ...item,
+            'distanceMeters': meters,
+            'distanceStr': LocationService.instance.formatDistance(meters),
+            'walkEta': LocationService.instance.formatWalkTime(meters),
+            'driveEta': LocationService.instance.formatDriveTime(meters),
+          };
+        }).toList();
+
+        // Sort ascending by distance: closest first!
+        sortedList.sort((a, b) =>
+            (a['distanceMeters'] as double).compareTo(b['distanceMeters'] as double));
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Section Header
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'YAQIN MANZILLAR',
+                      style: GoogleFonts.dmSans(
+                        fontSize: 9.5,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 1.2,
+                        color: const Color(0xFF0E8F7D),
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      'Eng yaqin dorixonalar',
+                      style: GoogleFonts.manrope(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w800,
+                        color: const Color(0xFF173C43),
+                      ),
+                    ),
+                  ],
+                ),
+                GestureDetector(
+                  onTap: () => widget.onOpenMap?.call(),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFE2F7EF),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          'Xaritada',
+                          style: GoogleFonts.dmSans(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                            color: const Color(0xFF0E7A5D),
+                          ),
+                        ),
+                        const SizedBox(width: 4),
+                        const Icon(
+                          Icons.arrow_forward_rounded,
+                          size: 13,
+                          color: Color(0xFF0E7A5D),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+
+            // Top 3 Nearest Pharmacy Cards
+            ...sortedList.take(3).map((pharm) {
+              final isClosest = pharm['id'] == sortedList.first['id'];
+              return _buildPharmacyCard(pharm, isClosest);
+            }),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildPharmacyCard(Map<String, dynamic> pharm, bool isClosest) {
+    return GestureDetector(
+      onTap: () => widget.onOpenMap?.call(),
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 11),
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: isClosest ? const Color(0xFFF6FCF9) : Colors.white,
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(
+            color: isClosest
+                ? const Color(0xFF0E9B83).withValues(alpha: 0.35)
+                : const Color(0xFFE5EEEA),
+            width: isClosest ? 1.5 : 1.0,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: isClosest
+                  ? const Color(0xFF0E9B83).withValues(alpha: 0.08)
+                  : Colors.black.withValues(alpha: 0.03),
+              blurRadius: 16,
+              offset: const Offset(0, 5),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                // Store Icon
+                Container(
+                  width: 44,
+                  height: 44,
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: isClosest
+                          ? [const Color(0xFFD4F7EB), const Color(0xFFB8EFE0)]
+                          : [const Color(0xFFEDF8F5), const Color(0xFFD8EFE9)],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: Center(
+                    child: Container(
+                      width: 24,
+                      height: 24,
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(7),
+                      ),
+                      child: Center(
+                        child: Text(
+                          '+',
+                          style: GoogleFonts.dmSans(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w800,
+                            color: const Color(0xFF0E9B83),
+                            height: 1.0,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+
+                // Name & Address
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          if (isClosest) ...[
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+                              margin: const EdgeInsets.only(right: 6),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF0E9B83),
+                                borderRadius: BorderRadius.circular(5),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Icon(Icons.star, size: 8, color: Colors.white),
+                                  const SizedBox(width: 2),
+                                  Text(
+                                    'ENG YAQIN',
+                                    style: GoogleFonts.dmSans(
+                                      fontSize: 7.5,
+                                      fontWeight: FontWeight.w800,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                          Text(
+                            pharm['isOpen24'] == true ? '24/7 OCHIQ' : (pharm['hours'] ?? 'OCHIQ'),
+                            style: GoogleFonts.dmSans(
+                              fontSize: 8.5,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: 0.5,
+                              color: const Color(0xFF07966E),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        pharm['name'] ?? '',
+                        style: GoogleFonts.manrope(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w800,
+                          color: const Color(0xFF173C43),
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 1),
+                      Text(
+                        pharm['address'] ?? '',
+                        style: GoogleFonts.dmSans(
+                          fontSize: 10.5,
+                          color: const Color(0xFF758B8E),
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                ),
+
+                // Rating Pill
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFFF9E6),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.star_rounded, size: 12, color: Colors.amber),
+                      const SizedBox(width: 2),
+                      Text(
+                        pharm['rating'] ?? '4.9',
+                        style: GoogleFonts.dmSans(
+                          fontSize: 10.5,
+                          fontWeight: FontWeight.w800,
+                          color: const Color(0xFF9E7000),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+
+            // Bottom Info & Quick Actions
+            Row(
+              children: [
+                // Distance badge
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFEDF8F5),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(
+                        CupertinoIcons.location_solid,
+                        size: 11,
+                        color: Color(0xFF0E9B83),
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        '${pharm['distanceStr']} · ${pharm['walkEta']}',
+                        style: GoogleFonts.dmSans(
+                          fontSize: 10.5,
+                          fontWeight: FontWeight.w700,
+                          color: const Color(0xFF0E7A5D),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const Spacer(),
+
+                // Phone Call button
+                GestureDetector(
+                  onTap: () async {
+                    final uri = Uri.parse('tel:${pharm['phone']}');
+                    if (await canLaunchUrl(uri)) launchUrl(uri);
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.all(7),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF2F7F5),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: const Color(0xFFDEEBE7)),
+                    ),
+                    child: const Icon(
+                      CupertinoIcons.phone_fill,
+                      size: 14,
+                      color: Color(0xFF0E9B83),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 6),
+
+                // Route button
+                GestureDetector(
+                  onTap: () async {
+                    final uri = Uri.parse(
+                      'https://www.google.com/maps/dir/?api=1&destination=${pharm['lat']},${pharm['lng']}',
+                    );
+                    if (await canLaunchUrl(uri)) {
+                      launchUrl(uri, mode: LaunchMode.externalApplication);
+                    }
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(
+                        colors: [Color(0xFF0E9B83), Color(0xFF146ECB)],
+                      ),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(
+                          CupertinoIcons.arrow_up_right_diamond_fill,
+                          size: 11,
+                          color: Colors.white,
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          'Marshrut',
+                          style: GoogleFonts.manrope(
+                            fontSize: 10.5,
+                            fontWeight: FontWeight.w700,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }
 
 // =============================================================================
@@ -1410,7 +1879,7 @@ class _DoctorMascotWidgetState extends State<DoctorMascotWidget>
                   ],
                 ),
                 child: Text(
-                  'Salom! 😊\nDr. Umed xizmatingizda!',
+                  'Salom!\nDr. Umed xizmatingizda!',
                   textAlign: TextAlign.center,
                   style: GoogleFonts.dmSans(
                     color: Colors.white,

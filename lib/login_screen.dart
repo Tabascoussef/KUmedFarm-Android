@@ -172,12 +172,14 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   void _enter() {
-    Navigator.of(context).pushReplacement(
+    Navigator.of(context).pushAndRemoveUntil(
       PageRouteBuilder(
+        opaque: true,
         pageBuilder: (context, animation, secondary) => const HomeScreen(),
         transitionsBuilder: (context, a, secondary, child) =>
             FadeTransition(opacity: a, child: child),
       ),
+      (route) => false,
     );
   }
 
@@ -192,10 +194,11 @@ class _LoginScreenState extends State<LoginScreen> {
   }) {
     final p = context.p;
     final isObscured = isConfirm ? _obscureConfirm : _obscure;
+    final fieldBg = p.dark ? const Color(0xFF0E2236) : const Color(0xFFF8FAFB);
 
     return Container(
       decoration: BoxDecoration(
-        color: p.card,
+        color: fieldBg,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: p.border),
       ),
@@ -255,7 +258,7 @@ class _LoginScreenState extends State<LoginScreen> {
     return Container(
       padding: const EdgeInsets.all(4),
       decoration: BoxDecoration(
-        color: p.cardAlt,
+        color: p.dark ? const Color(0xFF14304A) : const Color(0xFFF1F5F4),
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: p.border),
       ),
@@ -337,28 +340,39 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     final p = context.p;
-    return Scaffold(
-      body: Container(
-        decoration: p.bgDecoration,
-        child: SafeArea(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 28),
-            child: Column(
-              children: [
-                const SizedBox(height: 24),
+    final solidBg = p.dark ? const Color(0xFF071524) : Colors.white;
 
-                // Brand Header Card
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.symmetric(vertical: 20),
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(28),
-                    gradient: LinearGradient(colors: [
-                      AppColors.teal.withValues(alpha: p.dark ? 0.25 : 0.12),
-                      p.card,
-                    ]),
-                    border: Border.all(color: p.border),
-                  ),
+    return Material(
+      color: solidBg,
+      child: Scaffold(
+        backgroundColor: solidBg,
+        body: Container(
+          width: double.infinity,
+          height: double.infinity,
+          color: solidBg,
+          child: SafeArea(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(horizontal: 28),
+              child: Column(
+                children: [
+                  const SizedBox(height: 24),
+
+                  // Brand Header Card
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(vertical: 20),
+                    decoration: BoxDecoration(
+                      color: p.dark ? const Color(0xFF0E2236) : Colors.white,
+                      borderRadius: BorderRadius.circular(28),
+                      border: Border.all(color: p.border),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.04),
+                          blurRadius: 16,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
+                    ),
                   child: Column(
                     children: [
                       Image.asset(
@@ -567,6 +581,7 @@ class _LoginScreenState extends State<LoginScreen> {
           ),
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 }

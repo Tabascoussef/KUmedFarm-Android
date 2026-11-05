@@ -29,16 +29,28 @@ android {
         versionName = flutter.versionName
     }
 
+    signingConfigs {
+        getByName("debug") {
+            enableV1Signing = true
+            enableV2Signing = true
+            enableV3Signing = true
+        }
+    }
+
     buildTypes {
         release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
+            signingConfig = signingConfigs.getByName("debug")
+        }
+        getByName("profile") {
             signingConfig = signingConfigs.getByName("debug")
         }
     }
 }
 
-dependencies {}
+dependencies {
+    implementation("com.google.android.gms:play-services-location:21.1.0")
+    implementation("com.yandex.android:maps.mobile:4.39.1-lite")
+}
 
 kotlin {
     compilerOptions {

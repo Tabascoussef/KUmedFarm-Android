@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'app_locale.dart';
 import 'services/api_service.dart';
+import 'services/notification_service.dart';
 import 'splash_screen.dart';
 import 'theme.dart';
 
@@ -11,6 +12,7 @@ void main() {
 
   // Restore session asynchronously in background without blocking instant app & animation start
   ApiService.instance.initSession();
+  NotificationService.instance.init();
 
   // Start real-time background synchronization with web backend
   ApiService.instance.startRealtimeSync();

@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'app_locale.dart';
 import 'services/api_service.dart';
 import 'services/cart_service.dart';
+import 'services/location_service.dart';
 
 class CartScreen extends StatefulWidget {
   const CartScreen({super.key});
@@ -44,19 +45,37 @@ class _CartScreenState extends State<CartScreen> {
   }
 
   void _openCheckout(BuildContext context, int subtotal, int discount, int deliveryFee, int total) {
-    final addressCtrl = TextEditingController(text: 'Toshkent sh., Chilonzor 9-mavze, 14-uy');
+    final cachedLoc = LocationService.instance.currentLocation.value;
+    final addressCtrl = TextEditingController(
+      text: cachedLoc?.formattedAddress ?? '',
+    );
     final phoneCtrl = TextEditingController(text: '+998 90 123 45 67');
     final notesCtrl = TextEditingController();
     String selectedPayment = 'payme'; // 'payme' | 'click' | 'cash'
     String selectedTime = 'fast'; // 'fast' | 'standard'
     bool isSubmitting = false;
+    bool isLocating = false;
+    bool locationAutoDetected = cachedLoc != null;
 
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setSheetState) => Container(
+        builder: (ctx, setSheetState) {
+          if (addressCtrl.text.isEmpty && !isLocating) {
+            isLocating = true;
+            LocationService.instance.detectCurrentLocation().then((loc) {
+              if (ctx.mounted) {
+                setSheetState(() {
+                  addressCtrl.text = loc.formattedAddress;
+                  isLocating = false;
+                  locationAutoDetected = true;
+                });
+              }
+            });
+          }
+          return Container(
           decoration: const BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
@@ -130,13 +149,68 @@ class _CartScreenState extends State<CartScreen> {
                     const SizedBox(height: 16),
 
                     // Address
-                    Text(
-                      context.tr('checkout_address'),
-                      style: GoogleFonts.dmSans(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w700,
-                        color: const Color(0xFF173C43),
-                      ),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          context.tr('checkout_address'),
+                          style: GoogleFonts.dmSans(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                            color: const Color(0xFF173C43),
+                          ),
+                        ),
+                        GestureDetector(
+                          onTap: () async {
+                            setSheetState(() => isLocating = true);
+                            try {
+                              final loc = await LocationService.instance.detectCurrentLocation(force: true);
+                              addressCtrl.text = loc.formattedAddress;
+                              setSheetState(() {
+                                isLocating = false;
+                                locationAutoDetected = true;
+                              });
+                            } catch (_) {
+                              setSheetState(() => isLocating = false);
+                            }
+                          },
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFE2F7EF),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                isLocating
+                                    ? const SizedBox(
+                                        width: 10,
+                                        height: 10,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 1.5,
+                                          color: Color(0xFF0E9B83),
+                                        ),
+                                      )
+                                    : const Icon(
+                                        CupertinoIcons.location_fill,
+                                        size: 11,
+                                        color: Color(0xFF0E9B83),
+                                      ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  isLocating ? 'Aniqlanmoqda...' : 'GPS orqali aniqlash',
+                                  style: GoogleFonts.dmSans(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w700,
+                                    color: const Color(0xFF0E7A5D),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                     const SizedBox(height: 6),
                     Container(
@@ -165,6 +239,23 @@ class _CartScreenState extends State<CartScreen> {
                         ],
                       ),
                     ),
+                    if (locationAutoDetected) ...[
+                      const SizedBox(height: 4),
+                      Row(
+                        children: [
+                          const Icon(Icons.check_circle_rounded, size: 12, color: Color(0xFF0E9B83)),
+                          const SizedBox(width: 4),
+                          Text(
+                            'GPS orqali avtomatik belgilandi',
+                            style: GoogleFonts.dmSans(
+                              fontSize: 10,
+                              color: const Color(0xFF0E9B83),
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
                     const SizedBox(height: 14),
 
                     // Phone
@@ -461,9 +552,10 @@ class _CartScreenState extends State<CartScreen> {
               ),
             ),
           ),
-        ),
-      ),
-    );
+        );
+      },
+    ),
+  );
   }
 
   Widget _buildPaymentOption({

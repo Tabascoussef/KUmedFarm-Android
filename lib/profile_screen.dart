@@ -4,7 +4,9 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'app_locale.dart';
 import 'login_screen.dart';
+import 'screens/antigravity_showcase_screen.dart';
 import 'services/api_service.dart';
+import 'services/location_service.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -41,7 +43,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
       if (mounted) {
         setState(() {
           if (user['name'] != null && (user['name'] as String).isNotEmpty) {
-            _userName = user['name'];
+            String name = (user['name'] as String)
+                .replaceAll(RegExp(r'\(.*rejim.*\)', caseSensitive: false), '')
+                .replaceAll('rejim)', '')
+                .replaceAll('(offline)', '')
+                .replaceAll('(Offline)', '')
+                .trim();
+            if (name == 'KUmedFarm Admin' || name.isEmpty) {
+              name = 'Aziza Usmanova';
+            }
+            _userName = name;
           }
           if (user['email'] != null && (user['email'] as String).isNotEmpty) {
             _userEmail = user['email'];
@@ -51,6 +62,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
           }
           if (user['role'] != null && (user['role'] as String).isNotEmpty) {
             _userRole = user['role'];
+          }
+          if (user['city'] != null && (user['city'] as String).isNotEmpty) {
+            _userCity = user['city'];
+          }
+          final locCity = LocationService.instance.currentLocation.value?.city;
+          if (locCity != null && locCity.isNotEmpty) {
+            _userCity = locCity;
           }
         });
       }
@@ -341,7 +359,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       ),
                       child: Row(
                         children: [
-                          Text(lang.flag, style: const TextStyle(fontSize: 22)),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFE0F2ED),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Text(
+                              lang.flag,
+                              style: GoogleFonts.manrope(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w700,
+                                color: const Color(0xFF0E9B83),
+                              ),
+                            ),
+                          ),
                           const SizedBox(width: 12),
                           Expanded(
                             child: Text(
@@ -600,8 +632,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
               Navigator.pop(ctx);
               await ApiService.instance.logout();
               if (mounted) {
-                Navigator.of(context, rootNavigator: true).pushReplacement(
+                Navigator.of(context, rootNavigator: true).pushAndRemoveUntil(
                   MaterialPageRoute(builder: (_) => const LoginScreen()),
+                  (route) => false,
                 );
               }
             },
@@ -896,6 +929,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                 fontWeight: FontWeight.w800,
                                 color: const Color(0xFF173C43),
                               ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                             ),
                             const SizedBox(height: 2),
                             Text(
@@ -905,6 +940,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                 color: const Color(0xFF758B8E),
                                 fontWeight: FontWeight.w500,
                               ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                             ),
                             const SizedBox(height: 2),
                             Text(
@@ -914,6 +951,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                 color: const Color(0xFF0E8F7D),
                                 fontWeight: FontWeight.w600,
                               ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                             ),
                           ],
                         ),
@@ -1025,6 +1064,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         title: context.tr('security'),
                         subtitle: 'Biometriya va parollar',
                         onTap: _showSecurityModal,
+                      ),
+                      _buildDivider(),
+                      _buildSettingsRow(
+                        icon: CupertinoIcons.sparkles,
+                        iconBg: const Color(0xFFE8F5E9),
+                        iconColor: const Color(0xFF0E9B83),
+                        title: 'Antigravitatsiya Fizikasi',
+                        subtitle: '60-120 FPS suzuvchi kosmik elementlar',
+                        onTap: () {
+                          Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) => const AntigravityShowcaseScreen(),
+                            ),
+                          );
+                        },
                       ),
                       _buildDivider(),
                       _buildSettingsRow(

@@ -7,11 +7,19 @@ import 'map_screen.dart';
 import 'notifications_screen.dart';
 import 'profile_screen.dart';
 import 'scanner_screen.dart';
+import 'services/api_service.dart';
+import 'services/location_service.dart';
 import 'shop_screen.dart';
 import 'theme.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
+
+  static final ValueNotifier<int> activeTabNotifier = ValueNotifier<int>(0);
+
+  static void switchToTab(int tabIndex) {
+    activeTabNotifier.value = tabIndex;
+  }
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -24,6 +32,8 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
+    LocationService.instance.detectCurrentLocation();
+    HomeScreen.activeTabNotifier.addListener(_handleTabChange);
     _pages = [
       DashboardScreen(
         onOpenMap: () => setState(() => _index = 1),
@@ -31,13 +41,27 @@ class _HomeScreenState extends State<HomeScreen> {
         onOpenNotifications: () => setState(() => _index = 3),
         onOpenProfile: () => setState(() => _index = 4),
       ),
-      const MapScreen(),
+      MapScreen(
+        onBack: () => setState(() => _index = 0),
+      ),
       ShopScreen(
         onOpenCart: () => setState(() => _index = 2),
       ),
       const NotificationsScreen(),
       const ProfileScreen(),
     ];
+  }
+
+  void _handleTabChange() {
+    if (mounted && _index != HomeScreen.activeTabNotifier.value) {
+      setState(() => _index = HomeScreen.activeTabNotifier.value);
+    }
+  }
+
+  @override
+  void dispose() {
+    HomeScreen.activeTabNotifier.removeListener(_handleTabChange);
+    super.dispose();
   }
 
   void _openScanner() {
@@ -83,7 +107,15 @@ class _HomeScreenState extends State<HomeScreen> {
       builder: (context, lang, _) => Scaffold(
         backgroundColor: p.bg,
         extendBody: false,
-        body: IndexedStack(index: _index, children: _pages),
+        body: PopScope(
+          canPop: _index == 0,
+          onPopInvokedWithResult: (didPop, _) {
+            if (!didPop) {
+              setState(() => _index = 0);
+            }
+          },
+          child: IndexedStack(index: _index, children: _pages),
+        ),
         bottomNavigationBar: Container(
           decoration: BoxDecoration(
             color: Colors.white.withValues(alpha: 0.94),
@@ -123,7 +155,10 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget _buildItem(int i, _TabItem item, bool sel) {
     return Expanded(
       child: GestureDetector(
-        onTap: () => setState(() => _index = i),
+        onTap: () {
+          setState(() => _index = i);
+          HomeScreen.activeTabNotifier.value = i;
+        },
         behavior: HitTestBehavior.opaque,
         child: Container(
           color: Colors.transparent,
@@ -154,18 +189,24 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                   ),
                   if (item.hasBadge)
-                    Positioned(
-                      top: -2,
-                      right: -3,
-                      child: Container(
-                        width: 8,
-                        height: 8,
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFFF6F61),
-                          shape: BoxShape.circle,
-                          border: Border.all(color: Colors.white, width: 1.5),
-                        ),
-                      ),
+                    ValueListenableBuilder<int>(
+                      valueListenable: ApiService.instance.unreadNotificationsCount,
+                      builder: (context, unread, _) {
+                        if (unread <= 0) return const SizedBox.shrink();
+                        return Positioned(
+                          top: -2,
+                          right: -3,
+                          child: Container(
+                            width: 8,
+                            height: 8,
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFFF6F61),
+                              shape: BoxShape.circle,
+                              border: Border.all(color: Colors.white, width: 1.5),
+                            ),
+                          ),
+                        );
+                      },
                     ),
                 ],
               ),

@@ -59,10 +59,28 @@ class ApiService {
         final data = jsonDecode(content);
         if (data is Map<String, dynamic> && data['token'] != null) {
           _authToken = data['token'];
-          _currentUser = data['user'];
+          final rawUser = data['user'];
+          if (rawUser is Map<String, dynamic>) {
+            _currentUser = Map<String, dynamic>.from(rawUser);
+            if (_currentUser!['name'] != null) {
+              String name = _currentUser!['name'].toString()
+                  .replaceAll('(Offline rejim)', '')
+                  .replaceAll('(offline rejim)', '')
+                  .replaceAll('(offline)', '')
+                  .trim();
+              if (name == 'KUmedFarm Admin' || name.isEmpty) {
+                name = 'Aziza Usmanova';
+              }
+              _currentUser!['name'] = name;
+            }
+          }
         }
+      } else {
+        _consecutiveFailures++;
       }
-    } catch (_) {}
+    } catch (_) {
+      _consecutiveFailures++;
+    }
   }
 
   /// Persist authenticated session to device storage
@@ -107,8 +125,17 @@ class ApiService {
     _realtimeTimer = null;
   }
 
+  int _consecutiveFailures = 0;
+
   /// Poll server for new events and update mobile reactive state
   Future<void> _checkRealtimeSync() async {
+    // If backend is offline or unreachable, back off to 20s to conserve CPU and battery
+    if (_consecutiveFailures > 2) {
+      if ((_realtimeTimer?.tick ?? 0) % 5 != 0) {
+        return;
+      }
+    }
+
     try {
       final res = await _sendRequest('GET', '/realtime/status', queryParams: {
         if (_lastKnownNotificationId > 0)
@@ -116,6 +143,7 @@ class ApiService {
       });
 
       if (res['success'] == true) {
+        _consecutiveFailures = 0;
         if (res['counts'] != null) {
           final unread = res['counts']['unread_notifications'] ?? 0;
           unreadNotificationsCount.value = unread;
@@ -150,8 +178,12 @@ class ApiService {
             _lastKnownNotificationId = newestId;
           }
         }
+      } else {
+        _consecutiveFailures++;
       }
-    } catch (_) {}
+    } catch (_) {
+      _consecutiveFailures++;
+    }
   }
 
   /// Low-level HTTP request helper using standard dart:io HttpClient
@@ -257,10 +289,13 @@ class ApiService {
       _authToken = 'kumedfarm_mobile_demo_token_secure';
       _currentUser = {
         'id': 1,
-        'name': 'KUmedFarm Admin (Offline rejim)',
+        'name': 'Aziza Usmanova',
         'email': 'admin@kumedfarm.uz',
         'role': 'Bosh farmatsevt',
+        'city': 'Tashkent',
+        'phone': '+998 90 123 45 67',
       };
+      await _persistSession(_authToken!, _currentUser!);
       return {
         'success': true,
         'message': 'Tizimga offline rejimda kirildi.',

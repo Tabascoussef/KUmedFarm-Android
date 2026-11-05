@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 
 enum AppLanguage {
-  uz('O\'zbekcha', '🇺🇿', 'uz'),
-  ru('Русский', '🇷🇺', 'ru'),
-  en('English', '🇬🇧', 'en');
+  uz('O\'zbekcha', 'UZ', 'uz'),
+  ru('Русский', 'RU', 'ru'),
+  en('English', 'EN', 'en');
 
   final String name;
   final String flag;
