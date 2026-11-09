@@ -147,6 +147,13 @@ class LocationService {
     return buf.toString().replaceAll(RegExp(r'\s+'), ' ').trim();
   }
 
+  /// Manually set user coordinates (e.g. user selected their exact building or street on map)
+  Future<UserLocation> applyManualCoordinates(double lat, double lng) async {
+    isDetecting.value = true;
+    locationStatusMessage.value = 'Joylashuv yangilanmoqda...';
+    return await _applyCoordinates(lat, lng, isGps: true);
+  }
+
   /// Automatically detect user's REAL physical location via GPS and IP fallback with reverse geocoding
   Future<UserLocation> detectCurrentLocation({bool force = false}) async {
     // If we already have an accurate GPS fix and not forced, return it immediately
@@ -155,47 +162,67 @@ class LocationService {
     }
 
     isDetecting.value = true;
-    locationStatusMessage.value = 'Aniq joylashuv qidirilmoqda...';
+    locationStatusMessage.value = 'Aniq GPS joylashuv qidirilmoqda...';
 
     double? detectedLat;
     double? detectedLng;
     bool isGps = false;
 
-    // 1. Attempt Real GPS via Geolocator
+    // 1. Attempt High-Accuracy Hardware GPS via Geolocator
     try {
       bool serviceEnabled = false;
       try {
         serviceEnabled = await Geolocator.isLocationServiceEnabled();
       } catch (_) {}
 
+      if (!serviceEnabled && force) {
+        try {
+          await Geolocator.openLocationSettings();
+        } catch (_) {}
+      }
+
       LocationPermission permission = await Geolocator.checkPermission();
       if (permission == LocationPermission.denied) {
         permission = await Geolocator.requestPermission();
       }
 
+      if (permission == LocationPermission.deniedForever && force) {
+        try {
+          await Geolocator.openAppSettings();
+        } catch (_) {}
+      }
+
       if (serviceEnabled &&
           (permission == LocationPermission.whileInUse ||
               permission == LocationPermission.always)) {
-        // Fast Step 1: Check last known position (instant cached location)
+        // Step 1: Request Best/High satellite GPS accuracy
         try {
-          final last = await Geolocator.getLastKnownPosition();
-          if (last != null && !_isEmulator(last.latitude, last.longitude)) {
-            detectedLat = last.latitude;
-            detectedLng = last.longitude;
-            isGps = true;
-            // Instantly apply cached position so UI never hangs
-            _applyCoordinates(last.latitude, last.longitude, isGps: true);
+          final LocationSettings locationSettings;
+          if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
+            locationSettings = AndroidSettings(
+              accuracy: LocationAccuracy.best,
+              distanceFilter: 0,
+              forceLocationManager: false,
+              intervalDuration: const Duration(seconds: 1),
+              timeLimit: const Duration(seconds: 10),
+            );
+          } else if (!kIsWeb && defaultTargetPlatform == TargetPlatform.iOS) {
+            locationSettings = AppleSettings(
+              accuracy: LocationAccuracy.best,
+              activityType: ActivityType.fitness,
+              timeLimit: const Duration(seconds: 10),
+            );
+          } else {
+            locationSettings = const LocationSettings(
+              accuracy: LocationAccuracy.best,
+              timeLimit: Duration(seconds: 10),
+            );
           }
-        } catch (_) {}
 
-        // Fast Step 2: Request medium accuracy (Fused Wi-Fi / Cell - works indoors in ~500ms)
-        try {
           final pos = await Geolocator.getCurrentPosition(
-            locationSettings: const LocationSettings(
-              accuracy: LocationAccuracy.medium,
-              timeLimit: Duration(seconds: 4),
-            ),
+            locationSettings: locationSettings,
           );
+
           if (!_isEmulator(pos.latitude, pos.longitude)) {
             detectedLat = pos.latitude;
             detectedLng = pos.longitude;
@@ -203,22 +230,19 @@ class LocationService {
             _startContinuousStream();
             return await _applyCoordinates(pos.latitude, pos.longitude, isGps: true);
           }
-        } catch (_) {}
+        } catch (e) {
+          debugPrint('High accuracy GPS error, trying last known position: $e');
+        }
 
-        // Step 3: Satellite high accuracy GPS fix
+        // Step 2: Fallback to last known position if current GPS fix timed out
         try {
-          final highPos = await Geolocator.getCurrentPosition(
-            locationSettings: const LocationSettings(
-              accuracy: LocationAccuracy.high,
-              timeLimit: Duration(seconds: 8),
-            ),
-          );
-          if (!_isEmulator(highPos.latitude, highPos.longitude)) {
-            detectedLat = highPos.latitude;
-            detectedLng = highPos.longitude;
+          final last = await Geolocator.getLastKnownPosition();
+          if (last != null && !_isEmulator(last.latitude, last.longitude)) {
+            detectedLat = last.latitude;
+            detectedLng = last.longitude;
             isGps = true;
             _startContinuousStream();
-            return await _applyCoordinates(highPos.latitude, highPos.longitude, isGps: true);
+            return await _applyCoordinates(last.latitude, last.longitude, isGps: true);
           }
         } catch (_) {}
       }
@@ -264,11 +288,21 @@ class LocationService {
   void _startContinuousStream() {
     _positionStreamSub?.cancel();
     try {
+      final LocationSettings settings;
+      if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
+        settings = AndroidSettings(
+          accuracy: LocationAccuracy.best,
+          distanceFilter: 3,
+          intervalDuration: const Duration(seconds: 2),
+        );
+      } else {
+        settings = const LocationSettings(
+          accuracy: LocationAccuracy.best,
+          distanceFilter: 3,
+        );
+      }
       _positionStreamSub = Geolocator.getPositionStream(
-        locationSettings: const LocationSettings(
-          accuracy: LocationAccuracy.high,
-          distanceFilter: 20, // update when user moves 20 meters
-        ),
+        locationSettings: settings,
       ).listen(
         (pos) {
           if (!_isEmulator(pos.latitude, pos.longitude)) {
@@ -368,6 +402,7 @@ class LocationService {
 
     Map<String, String>? result;
 
+    // 1. Try Nominatim OpenStreetMap reverse geocode
     try {
       final client = _getClient();
 
@@ -379,7 +414,7 @@ class LocationService {
       request.headers.set('User-Agent', 'KUAFmedFarmMobileApp/1.0 (contact@kuafmedfarm.uz)');
       request.headers.set('Accept-Language', 'uz-Latn, uz, en');
 
-      final response = await request.close().timeout(const Duration(seconds: 4));
+      final response = await request.close().timeout(const Duration(seconds: 5));
 
       if (response.statusCode == 200) {
         final body = await response.transform(utf8.decoder).join();
@@ -387,11 +422,11 @@ class LocationService {
         if (data is Map<String, dynamic>) {
           final addr = data['address'] as Map<String, dynamic>? ?? {};
 
-          final rawRoad = addr['road'] ?? addr['pedestrian'] ?? addr['street'];
+          final rawRoad = addr['road'] ?? addr['pedestrian'] ?? addr['street'] ?? addr['residential'] ?? addr['highway'];
           final rawHouse = addr['house_number'];
-          final rawNeighbourhood = addr['neighbourhood'] ?? addr['suburb'] ?? addr['quarter'];
-          final rawDistrict = addr['district'] ?? addr['city_district'] ?? addr['suburb'] ?? addr['county'];
-          final rawCity = addr['city'] ?? addr['town'] ?? addr['state'] ?? 'Andijon';
+          final rawNeighbourhood = addr['neighbourhood'] ?? addr['suburb'] ?? addr['quarter'] ?? addr['village'] ?? addr['hamlet'];
+          final rawDistrict = addr['district'] ?? addr['city_district'] ?? addr['county'] ?? addr['borough'];
+          final rawCity = addr['city'] ?? addr['town'] ?? addr['municipality'] ?? addr['state'] ?? 'Andijon';
 
           final road = rawRoad != null ? toUzbekLatin(rawRoad.toString()) : null;
           final house = rawHouse != null ? toUzbekLatin(rawHouse.toString()) : null;
@@ -400,14 +435,23 @@ class LocationService {
           final city = toUzbekLatin(rawCity.toString());
 
           String short = '';
-          if (road != null && district != null) {
-            short = house != null ? '$road, $house, $district' : '$road, $district';
-          } else if (neighbourhood != null && district != null) {
-            short = '$neighbourhood, $district';
+          if (road != null && house != null) {
+            short = '$road, $house';
+          } else if (road != null && neighbourhood != null && road != neighbourhood) {
+            short = '$road, $neighbourhood';
+          } else if (road != null && district != null && road != district) {
+            short = '$road, $district';
           } else if (road != null) {
-            short = house != null ? '$road, $house' : road;
+            short = road;
+          } else if (neighbourhood != null && district != null && neighbourhood != district) {
+            short = '$neighbourhood, $district';
+          } else if (neighbourhood != null) {
+            short = '$neighbourhood, $city';
           } else if (district != null) {
             short = '$district, $city';
+          } else if (data['display_name'] != null) {
+            final parts = data['display_name'].toString().split(',').map((p) => toUzbekLatin(p.trim())).where((p) => p.isNotEmpty).toList();
+            short = parts.take(2).join(', ');
           } else {
             short = '$city markazi';
           }
@@ -417,10 +461,13 @@ class LocationService {
             formatted = '$house, $road, ${district ?? city}';
           } else if (road != null) {
             formatted = '$road, ${district ?? city}';
+          } else if (neighbourhood != null) {
+            formatted = '$neighbourhood, ${district ?? city}';
+          } else if (data['display_name'] != null) {
+            final parts = data['display_name'].toString().split(',').map((p) => toUzbekLatin(p.trim())).where((p) => p.isNotEmpty).toList();
+            formatted = parts.take(3).join(', ');
           } else {
-            formatted = data['display_name'] != null
-                ? toUzbekLatin(data['display_name'].toString())
-                : '$city markazi';
+            formatted = '$city markazi';
           }
 
           result = {
@@ -433,44 +480,70 @@ class LocationService {
       }
     } catch (_) {}
 
+    // 2. Secondary Fast Reverse Geocoder fallback: BigDataCloud
+    if (result == null) {
+      try {
+        final client = _getClient();
+        final uri = Uri.parse(
+          'https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=$lat&longitude=$lng&localityLanguage=uz',
+        );
+        final req = await client.getUrl(uri);
+        final res = await req.close().timeout(const Duration(seconds: 4));
+        if (res.statusCode == 200) {
+          final body = await res.transform(utf8.decoder).join();
+          final data = jsonDecode(body);
+          if (data is Map<String, dynamic>) {
+            final city = toUzbekLatin(data['city']?.toString() ?? data['locality']?.toString() ?? 'Andijon');
+            final district = toUzbekLatin(data['principalSubdivision']?.toString() ?? city);
+            result = {
+              'formatted': '$district, $city',
+              'short': city,
+              'district': district,
+              'city': city,
+            };
+          }
+        }
+      } catch (_) {}
+    }
+
     if (result != null) {
       _geocodeCache[cacheKey] = result;
       return result;
     }
 
-    // Accurate district-aware fallback based on coordinates
-    String district = 'Andijon shahri';
-    String street = 'Bobur shoh koʻchasi';
+    // 3. Accurate coordinate-based fallback without fake hardcoded street names
+    final dToCenter = calculateDistance(lat, lng, defaultLat, defaultLng);
+    String district = 'Andijon';
+    String street = '';
     String city = 'Andijon';
 
     if (lat > 41.0) {
       city = 'Toshkent';
-      district = 'Chilonzor tumani';
-      street = 'Bunyodkor shoh koʻchasi';
-      if (lat > 41.34) {
-        district = 'Yunusobod tumani';
-        street = 'Amir Temur shoh koʻchasi';
-      } else if (lat > 41.31) {
-        district = 'Mirzo Ulugʻbek tumani';
-        street = 'Mustaqillik shoh koʻchasi';
-      }
+      district = 'Toshkent shahri';
+      street = 'Amir Temur shoh koʻchasi';
     } else {
       city = 'Andijon';
-      if (lat > 40.79) {
-        district = 'Eski shahar';
-        street = 'Choʻlpon shoh koʻchasi';
-      } else if (lat > 40.78) {
-        district = 'Markaz';
+      if (dToCenter < 800) {
+        district = 'Markaziy hudud';
         street = 'Bobur shoh koʻchasi';
-      } else if (lat < 40.77) {
+      } else if (lat > 40.79) {
+        district = 'Eski shahar';
+      } else if (lat < 40.76) {
+        district = 'Janubiy hudud';
+      } else if (lng > 72.36) {
         district = 'Yangi shahar';
-        street = 'Amir Temur shoh koʻchasi';
+      } else {
+        district = 'Andijon shahri';
       }
     }
 
+    final shortAddr = street.isNotEmpty
+        ? '$street, $district'
+        : '$district (${lat.toStringAsFixed(4)}°, ${lng.toStringAsFixed(4)}°)';
+
     final fallback = {
-      'formatted': '$street, $district, $city',
-      'short': '$street, $district',
+      'formatted': street.isNotEmpty ? '$street, $district, $city' : '$district, $city',
+      'short': shortAddr,
       'district': district,
       'city': city,
     };

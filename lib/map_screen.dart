@@ -242,10 +242,14 @@ class _MapScreenState extends State<MapScreen>
       setState(() {
         _userLocation = loc;
         _isLocating = false;
+        _cachedMapObjects = null;
       });
 
       _recalculatePharmacies(loc);
       _loadPharmaciesFromApi();
+
+      final userPoint = Point(latitude: loc.latitude, longitude: loc.longitude);
+      await _moveToPoint(userPoint, zoom: 16.0);
     } catch (_) {
       if (mounted) setState(() => _isLocating = false);
     }
@@ -254,8 +258,10 @@ class _MapScreenState extends State<MapScreen>
   /// Recalculate distances, ETAs and sort closest pharmacy to user
   void _recalculatePharmacies(UserLocation loc) {
     // Dynamically calculate user position on the map canvas
-    final normX = ((loc.longitude - 69.17) / (69.33 - 69.17)).clamp(0.08, 0.92);
-    final normY = ((41.38 - loc.latitude) / (41.38 - 41.23)).clamp(0.08, 0.92);
+    final centerLng = LocationService.defaultLng;
+    final centerLat = LocationService.defaultLat;
+    final normX = (((loc.longitude - (centerLng - 0.08)) / 0.16)).clamp(0.08, 0.92);
+    final normY = ((((centerLat + 0.07) - loc.latitude) / 0.14)).clamp(0.08, 0.92);
     _userMapX = 100 + (normX * 700);
     _userMapY = 80 + (normY * 580);
 
@@ -437,7 +443,7 @@ class _MapScreenState extends State<MapScreen>
         if (!mounted || _selected.id != tempItem.id) return;
 
         final roadName = geocoded['short'] ?? 'Xaritadagi joy';
-        final fullAddr = geocoded['formatted'] ?? 'Toshkent shahri';
+        final fullAddr = geocoded['formatted'] ?? 'Andijon shahri';
 
         setState(() {
           _isReverseGeocoding = false;
@@ -1869,16 +1875,52 @@ class _MapScreenState extends State<MapScreen>
                         ),
                         const SizedBox(width: 10),
 
-                        // Start Route Button
+                        // Action Button (Set as my location for custom point, or Start Route for pharmacy)
                         Expanded(
                           child: GestureDetector(
-                            onTap: () => _startRoute(_selected),
+                            onTap: () async {
+                              if (_selected.isCustomPoint) {
+                                final messenger = ScaffoldMessenger.of(context);
+                                final newLoc = await LocationService.instance.applyManualCoordinates(
+                                  _selected.latitude,
+                                  _selected.longitude,
+                                );
+                                if (!mounted) return;
+                                setState(() {
+                                  _userLocation = newLoc;
+                                  _cachedMapObjects = null;
+                                });
+                                _recalculatePharmacies(newLoc);
+                                _loadPharmaciesFromApi();
+                                messenger.showSnackBar(
+                                    SnackBar(
+                                      content: Row(
+                                        children: [
+                                          const Icon(
+                                            CupertinoIcons.checkmark_seal_fill,
+                                            color: Colors.white,
+                                            size: 16,
+                                          ),
+                                          const SizedBox(width: 8),
+                                          Expanded(
+                                            child: Text('Joylashuv belgilandi: ${newLoc.shortAddress}'),
+                                          ),
+                                        ],
+                                      ),
+                                      backgroundColor: const Color(0xFF0E9B83),
+                                      behavior: SnackBarBehavior.floating,
+                                    ),
+                                  );
+                              } else {
+                                _startRoute(_selected);
+                              }
+                            },
                             child: Container(
                               height: 44,
                               decoration: BoxDecoration(
                                 gradient: LinearGradient(
                                   colors: _selected.isCustomPoint
-                                      ? [const Color(0xFF1677FF), const Color(0xFF0E9B83)]
+                                      ? [const Color(0xFF0E9B83), const Color(0xFF1677FF)]
                                       : [const Color(0xFF0E9680), const Color(0xFF146ECB)],
                                 ),
                                 borderRadius: BorderRadius.circular(14),
@@ -1893,14 +1935,18 @@ class _MapScreenState extends State<MapScreen>
                               child: Row(
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
-                                  const Icon(
-                                    CupertinoIcons.arrow_up_right_diamond_fill,
+                                  Icon(
+                                    _selected.isCustomPoint
+                                        ? CupertinoIcons.location_fill
+                                        : CupertinoIcons.arrow_up_right_diamond_fill,
                                     size: 16,
                                     color: Colors.white,
                                   ),
                                   const SizedBox(width: 8),
                                   Text(
-                                    context.tr('start_route'),
+                                    _selected.isCustomPoint
+                                        ? 'Mening joylashuvim deb belgilash'
+                                        : context.tr('start_route'),
                                     style: GoogleFonts.manrope(
                                       fontSize: 13,
                                       fontWeight: FontWeight.w800,
