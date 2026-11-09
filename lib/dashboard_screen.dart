@@ -1316,31 +1316,36 @@ class _DashboardScreenState extends State<DashboardScreen> {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'TOPILGAN DORIXONALAR',
-                  style: GoogleFonts.dmSans(
-                    fontSize: 9.5,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: 1.2,
-                    color: const Color(0xFF0E8F7D),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'TOPILGAN DORIXONALAR',
+                    style: GoogleFonts.dmSans(
+                      fontSize: 9.5,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 1.2,
+                      color: const Color(0xFF0E8F7D),
+                    ),
                   ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  selected != null
-                      ? '${selected.name} mavjud dorixonalar'
-                      : 'Dorixonalar ro\'yxati',
-                  style: GoogleFonts.manrope(
-                    fontSize: 17,
-                    fontWeight: FontWeight.w800,
-                    color: const Color(0xFF173C43),
+                  const SizedBox(height: 2),
+                  Text(
+                    selected != null
+                        ? '${selected.name} mavjud dorixonalar'
+                        : 'Dorixonalar ro\'yxati',
+                    style: GoogleFonts.manrope(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w800,
+                      color: const Color(0xFF173C43),
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
+            const SizedBox(width: 8),
             if (_pharmacyStocks.isNotEmpty)
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
@@ -1598,67 +1603,83 @@ class _DashboardScreenState extends State<DashboardScreen> {
             Row(
               children: [
                 // Price & Stock
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      stock.priceStr,
-                      style: GoogleFonts.manrope(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w800,
-                        color: const Color(0xFF0E9B83),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        stock.priceStr,
+                        style: GoogleFonts.manrope(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w800,
+                          color: const Color(0xFF0E9B83),
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 2),
-                    Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFEBF7F2),
-                            borderRadius: BorderRadius.circular(6),
-                          ),
-                          child: Text(
-                            'Mavjud: ${stock.stockCount} dona',
-                            style: GoogleFonts.dmSans(
-                              fontSize: 9.5,
-                              fontWeight: FontWeight.w700,
-                              color: const Color(0xFF0D8A74),
+                      const SizedBox(height: 3),
+                      Wrap(
+                        crossAxisAlignment: WrapCrossAlignment.center,
+                        spacing: 6,
+                        runSpacing: 4,
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFEBF7F2),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Text(
+                              'Mavjud: ${stock.stockCount} dona',
+                              style: GoogleFonts.dmSans(
+                                fontSize: 9.5,
+                                fontWeight: FontWeight.w700,
+                                color: const Color(0xFF0D8A74),
+                              ),
                             ),
                           ),
-                        ),
-                        const SizedBox(width: 6),
-                        Text(
-                          '${stock.distanceStr} · ${stock.walkEta}',
-                          style: GoogleFonts.dmSans(
-                            fontSize: 10.5,
-                            fontWeight: FontWeight.w500,
-                            color: const Color(0xFF758B8E),
+                          Text(
+                            '${stock.distanceStr} · ${stock.walkEta}',
+                            style: GoogleFonts.dmSans(
+                              fontSize: 10.5,
+                              fontWeight: FontWeight.w500,
+                              color: const Color(0xFF758B8E),
+                            ),
                           ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 8),
+                // Action Button: Xaritada ochish
+                GestureDetector(
+                  onTap: openInMap,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF0E9B83),
+                      borderRadius: BorderRadius.circular(12),
+                      boxShadow: [
+                        BoxShadow(
+                          color: const Color(0xFF0E9B83).withValues(alpha: 0.25),
+                          blurRadius: 6,
+                          offset: const Offset(0, 2),
                         ),
                       ],
                     ),
-                  ],
-                ),
-                const Spacer(),
-                // Action Button: Xaritada ochish
-                ElevatedButton.icon(
-                  onPressed: openInMap,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF0E9B83),
-                    foregroundColor: Colors.white,
-                    elevation: 0,
-                    padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 9),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                  icon: const Icon(CupertinoIcons.location_fill, size: 13),
-                  label: Text(
-                    'Xaritada ochish',
-                    style: GoogleFonts.dmSans(
-                      fontSize: 11.5,
-                      fontWeight: FontWeight.w700,
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(CupertinoIcons.location_fill, size: 12, color: Colors.white),
+                        const SizedBox(width: 4),
+                        Text(
+                          'Xaritada ochish',
+                          style: GoogleFonts.dmSans(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ),
