@@ -6,9 +6,11 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'app_locale.dart';
 import 'cart_screen.dart';
+import 'map_screen.dart';
 import 'services/api_service.dart';
 import 'services/cart_service.dart';
 import 'services/location_service.dart';
+import 'services/medicine_service.dart';
 import 'theme.dart';
 
 class DashboardScreen extends StatefulWidget {
@@ -30,7 +32,26 @@ class DashboardScreen extends StatefulWidget {
 }
 
 class _DashboardScreenState extends State<DashboardScreen> {
+  final TextEditingController _searchController = TextEditingController();
   String _search = '';
+  List<MedicineModel> _matchingMedicines = [];
+  MedicineModel? _selectedMedicine;
+  List<PharmacyMedicineStock> _pharmacyStocks = [];
+  bool _isLoadingPharmacies = false;
+
+  static const List<String> _popularMedicineChips = [
+    'Paratsetamol',
+    'Nurofen',
+    'Kardiomagnil',
+    'Sitramon',
+    'Trimol',
+    'Amoksiklav',
+    'Teraflu',
+    'Lineks',
+    'Aspirin',
+    'Vitamin C',
+  ];
+
   bool _isLoadingData = false;
   int _activeDealIndex = 0;
   final PageController _dealPageController = PageController();
@@ -168,9 +189,69 @@ class _DashboardScreenState extends State<DashboardScreen> {
   @override
   void dispose() {
     LocationService.instance.currentLocation.removeListener(_onDashboardLocationChanged);
+    _searchController.dispose();
     _dealTimer?.cancel();
     _dealPageController.dispose();
     super.dispose();
+  }
+
+  void _onSearchQueryChanged(String query) async {
+    final clean = query.trim();
+    setState(() {
+      _search = clean;
+    });
+
+    if (clean.isEmpty) {
+      setState(() {
+        _matchingMedicines = [];
+        _selectedMedicine = null;
+        _pharmacyStocks = [];
+        _isLoadingPharmacies = false;
+      });
+      return;
+    }
+
+    final matches = MedicineService.instance.searchMedicines(clean);
+    setState(() {
+      _matchingMedicines = matches;
+      _selectedMedicine = matches.isNotEmpty ? matches.first : null;
+      _isLoadingPharmacies = true;
+    });
+
+    if (_selectedMedicine != null) {
+      await _loadPharmaciesForMedicine(_selectedMedicine!);
+    } else {
+      setState(() {
+        _isLoadingPharmacies = false;
+      });
+    }
+  }
+
+  Future<void> _loadPharmaciesForMedicine(MedicineModel med) async {
+    setState(() {
+      _selectedMedicine = med;
+      _isLoadingPharmacies = true;
+    });
+
+    final loc = LocationService.instance.currentLocation.value;
+    final stocks = await MedicineService.instance.getPharmaciesForMedicine(
+      med,
+      userLat: loc?.latitude,
+      userLng: loc?.longitude,
+      availablePharmacies: _livePharmacies.isNotEmpty ? _livePharmacies : null,
+    );
+
+    if (mounted) {
+      setState(() {
+        _pharmacyStocks = stocks;
+        _isLoadingPharmacies = false;
+      });
+    }
+  }
+
+  void _clearSearch() {
+    _searchController.clear();
+    _onSearchQueryChanged('');
   }
 
   void _onDashboardLocationChanged() {
@@ -594,25 +675,32 @@ class _DashboardScreenState extends State<DashboardScreen> {
               // 2. Exact Search Bar
               _buildFigmaSearchBar(p),
 
-              const SizedBox(height: 14),
+              if (_search.isNotEmpty) ...[
+                const SizedBox(height: 16),
+                _buildMedicineSearchResultsView(p),
+              ] else ...[
+                const SizedBox(height: 10),
+                _buildPopularMedicineChips(p),
+                const SizedBox(height: 14),
 
-              // 3. Exact Hero Banner with Animated Doctor Mascot
-              _buildHealthAssistantBanner(),
+                // 3. Exact Hero Banner with Animated Doctor Mascot
+                _buildHealthAssistantBanner(),
 
-              const SizedBox(height: 21),
+                const SizedBox(height: 21),
 
-              // 4. Exact Quick Access Grid (4 cards)
-              _buildQuickAccessSection(p),
+                // 4. Exact Quick Access Grid (4 cards)
+                _buildQuickAccessSection(p),
 
-              const SizedBox(height: 21),
+                const SizedBox(height: 21),
 
-              // 5. Exact Daily Deals Carousel (3 deals)
-              _buildDailyDealsSection(),
+                // 5. Exact Daily Deals Carousel (3 deals)
+                _buildDailyDealsSection(),
 
-              const SizedBox(height: 24),
+                const SizedBox(height: 24),
 
-              // 6. Nearest Pharmacies Section (Eng yaqin dorixonalar)
-              _buildNearestPharmaciesSection(p),
+                // 6. Nearest Pharmacies Section (Eng yaqin dorixonalar)
+                _buildNearestPharmaciesSection(p),
+              ],
 
               const SizedBox(height: 32),
             ],
@@ -867,14 +955,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
           const SizedBox(width: 10),
           Expanded(
             child: TextField(
-              onChanged: (v) => setState(() => _search = v.trim()),
+              controller: _searchController,
+              onChanged: _onSearchQueryChanged,
               style: GoogleFonts.dmSans(
                 fontSize: 13,
                 color: const Color(0xFF173C43),
                 fontWeight: FontWeight.w400,
               ),
               decoration: InputDecoration(
-                hintText: context.tr('search_placeholder'),
+                hintText: 'Dori nomi yoki faol moddani qidiring...',
                 hintStyle: GoogleFonts.dmSans(
                   fontSize: 13,
                   color: const Color(0xFF8AA09F),
@@ -888,7 +977,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           ),
           if (_search.isNotEmpty)
             GestureDetector(
-              onTap: () => setState(() => _search = ''),
+              onTap: _clearSearch,
               child: const Padding(
                 padding: EdgeInsets.only(right: 6),
                 child: Icon(CupertinoIcons.clear_circled_solid, color: Colors.grey, size: 18),
@@ -913,6 +1002,670 @@ class _DashboardScreenState extends State<DashboardScreen> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildPopularMedicineChips(Palette p) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            const Icon(CupertinoIcons.flame_fill, size: 12, color: Color(0xFF0E9B83)),
+            const SizedBox(width: 4),
+            Text(
+              'Ommabop dorilar:',
+              style: GoogleFonts.dmSans(
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+                color: const Color(0xFF4A6B65),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 6),
+        SizedBox(
+          height: 32,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            itemCount: _popularMedicineChips.length,
+            separatorBuilder: (context, index) => const SizedBox(width: 6),
+            itemBuilder: (ctx, idx) {
+              final name = _popularMedicineChips[idx];
+              return GestureDetector(
+                onTap: () {
+                  _searchController.text = name;
+                  _onSearchQueryChanged(name);
+                },
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: const Color(0xFFE0EEEA)),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.02),
+                        blurRadius: 4,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(CupertinoIcons.search, size: 10, color: Color(0xFF0E9B83)),
+                      const SizedBox(width: 4),
+                      Text(
+                        name,
+                        style: GoogleFonts.dmSans(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: const Color(0xFF173C43),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildMedicineSearchResultsView(Palette p) {
+    if (_matchingMedicines.isEmpty && !_isLoadingPharmacies) {
+      return Container(
+        padding: const EdgeInsets.all(28),
+        margin: const EdgeInsets.only(top: 8),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: const Color(0xFFE5EEEA)),
+        ),
+        child: Column(
+          children: [
+            Container(
+              width: 56,
+              height: 56,
+              decoration: BoxDecoration(
+                color: const Color(0xFFF0FDF8),
+                shape: BoxShape.circle,
+                border: Border.all(color: const Color(0xFFC6F4E5)),
+              ),
+              child: const Center(
+                child: Icon(CupertinoIcons.capsule, color: Color(0xFF0E9B83), size: 28),
+              ),
+            ),
+            const SizedBox(height: 14),
+            Text(
+              'Dori vositasi topilmadi',
+              style: GoogleFonts.manrope(
+                fontSize: 16,
+                fontWeight: FontWeight.w800,
+                color: const Color(0xFF173C43),
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              '"$_search" bo\'yicha dori topilmadi. Boshqa nom bilan qidirib ko\'ring.',
+              textAlign: TextAlign.center,
+              style: GoogleFonts.dmSans(
+                fontSize: 12,
+                color: const Color(0xFF758B8E),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    final selected = _selectedMedicine;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // 1. Multiple matching medicines selection row
+        if (_matchingMedicines.length > 1) ...[
+          SizedBox(
+            height: 38,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              itemCount: _matchingMedicines.length,
+              separatorBuilder: (context, index) => const SizedBox(width: 8),
+              itemBuilder: (ctx, idx) {
+                final med = _matchingMedicines[idx];
+                final isSelected = med.id == selected?.id;
+                return GestureDetector(
+                  onTap: () => _loadPharmaciesForMedicine(med),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 200),
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: isSelected ? const Color(0xFF0E9B83) : Colors.white,
+                      borderRadius: BorderRadius.circular(19),
+                      border: Border.all(
+                        color: isSelected ? const Color(0xFF0E9B83) : const Color(0xFFE0EEEA),
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: isSelected
+                              ? const Color(0xFF0E9B83).withValues(alpha: 0.25)
+                              : Colors.black.withValues(alpha: 0.02),
+                          blurRadius: 8,
+                          offset: const Offset(0, 3),
+                        ),
+                      ],
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          med.icon,
+                          size: 13,
+                          color: isSelected ? Colors.white : const Color(0xFF0E9B83),
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          med.name,
+                          style: GoogleFonts.dmSans(
+                            fontSize: 12,
+                            fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
+                            color: isSelected ? Colors.white : const Color(0xFF173C43),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+          const SizedBox(height: 14),
+        ],
+
+        // 2. Selected Medicine Overview Card
+        if (selected != null) ...[
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                colors: [Color(0xFFF1FBF8), Color(0xFFE4F7F2)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: const Color(0xFF0E9B83).withValues(alpha: 0.25)),
+              boxShadow: [
+                BoxShadow(
+                  color: const Color(0xFF0E9B83).withValues(alpha: 0.06),
+                  blurRadius: 15,
+                  offset: const Offset(0, 5),
+                ),
+              ],
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      width: 44,
+                      height: 44,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF0E9B83),
+                        borderRadius: BorderRadius.circular(14),
+                        boxShadow: [
+                          BoxShadow(
+                            color: const Color(0xFF0E9B83).withValues(alpha: 0.3),
+                            blurRadius: 8,
+                            offset: const Offset(0, 3),
+                          ),
+                        ],
+                      ),
+                      child: Center(
+                        child: Icon(selected.icon, color: Colors.white, size: 22),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF0E9B83).withValues(alpha: 0.15),
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: Text(
+                                  selected.category.toUpperCase(),
+                                  style: GoogleFonts.dmSans(
+                                    fontSize: 8.5,
+                                    fontWeight: FontWeight.w800,
+                                    color: const Color(0xFF0E9B83),
+                                    letterSpacing: 0.6,
+                                  ),
+                                ),
+                              ),
+                              if (selected.isPrescription) ...[
+                                const SizedBox(width: 6),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFFFFECE5),
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
+                                  child: Text(
+                                    'RETSEPT BILAN',
+                                    style: GoogleFonts.dmSans(
+                                      fontSize: 8.5,
+                                      fontWeight: FontWeight.w800,
+                                      color: const Color(0xFFD9534F),
+                                      letterSpacing: 0.5,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ],
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            selected.name,
+                            style: GoogleFonts.manrope(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w800,
+                              color: const Color(0xFF173C43),
+                            ),
+                          ),
+                          Text(
+                            selected.dose,
+                            style: GoogleFonts.dmSans(
+                              fontSize: 11.5,
+                              fontWeight: FontWeight.w500,
+                              color: const Color(0xFF5B7D77),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  selected.description,
+                  style: GoogleFonts.dmSans(
+                    fontSize: 11.5,
+                    color: const Color(0xFF3F5C56),
+                    height: 1.35,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 18),
+        ],
+
+        // 3. Section Header: Found Pharmacies
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'TOPILGAN DORIXONALAR',
+                  style: GoogleFonts.dmSans(
+                    fontSize: 9.5,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 1.2,
+                    color: const Color(0xFF0E8F7D),
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  selected != null
+                      ? '${selected.name} mavjud dorixonalar'
+                      : 'Dorixonalar ro\'yxati',
+                  style: GoogleFonts.manrope(
+                    fontSize: 17,
+                    fontWeight: FontWeight.w800,
+                    color: const Color(0xFF173C43),
+                  ),
+                ),
+              ],
+            ),
+            if (_pharmacyStocks.isNotEmpty)
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFE2F7EF),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  '${_pharmacyStocks.length} ta dorixona',
+                  style: GoogleFonts.dmSans(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    color: const Color(0xFF0E7A5D),
+                  ),
+                ),
+              ),
+          ],
+        ),
+        const SizedBox(height: 12),
+
+        // 4. Pharmacy List or Loading State
+        if (_isLoadingPharmacies) ...[
+          const Center(
+            child: Padding(
+              padding: EdgeInsets.symmetric(vertical: 36),
+              child: Column(
+                children: [
+                  CircularProgressIndicator(color: Color(0xFF0E9B83)),
+                  SizedBox(height: 12),
+                  Text('Dorixonalar va narxlar tekshirilmoqda...'),
+                ],
+              ),
+            ),
+          ),
+        ] else if (_pharmacyStocks.isEmpty) ...[
+          Container(
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(color: const Color(0xFFE5EEEA)),
+            ),
+            child: Center(
+              child: Text(
+                'Yaqin dorixonalarda bu dori qoldig\'i topilmadi.',
+                style: GoogleFonts.dmSans(fontSize: 13, color: const Color(0xFF758B8E)),
+              ),
+            ),
+          ),
+        ] else ...[
+          ...List.generate(_pharmacyStocks.length, (idx) {
+            final stock = _pharmacyStocks[idx];
+            return _buildPharmacyMedicineStockCard(stock, selected!, idx == 0);
+          }),
+        ],
+
+        const SizedBox(height: 32),
+      ],
+    );
+  }
+
+  Widget _buildPharmacyMedicineStockCard(
+    PharmacyMedicineStock stock,
+    MedicineModel med,
+    bool isClosest,
+  ) {
+    void openInMap() {
+      MapScreen.focusOnPharmacy({
+        'id': stock.pharmacyId,
+        'name': stock.pharmacyName,
+        'address': stock.address,
+        'phone': stock.phone,
+        'lat': stock.latitude,
+        'lng': stock.longitude,
+        'rating': stock.rating,
+        'is247': stock.isOpen24,
+        'hours': stock.workingHours,
+        'stockCount': stock.stockCount,
+        'medicineContext': '${med.name} · ${stock.priceStr} (${stock.stockCount} dona mavjud)',
+      });
+    }
+
+    return GestureDetector(
+      onTap: openInMap,
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 12),
+        padding: const EdgeInsets.all(15),
+        decoration: BoxDecoration(
+          color: isClosest ? const Color(0xFFF7FCFA) : Colors.white,
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(
+            color: isClosest
+                ? const Color(0xFF0E9B83).withValues(alpha: 0.4)
+                : const Color(0xFFE5EEEA),
+            width: isClosest ? 1.5 : 1.0,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: isClosest
+                  ? const Color(0xFF0E9B83).withValues(alpha: 0.08)
+                  : Colors.black.withValues(alpha: 0.03),
+              blurRadius: 14,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Top Row: Badges & Price
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Medical / Store icon
+                Container(
+                  width: 44,
+                  height: 44,
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: isClosest
+                          ? [const Color(0xFFD4F7EB), const Color(0xFFB8EFE0)]
+                          : [const Color(0xFFEDF8F5), const Color(0xFFD8EFE9)],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    borderRadius: BorderRadius.circular(13),
+                  ),
+                  child: Center(
+                    child: Container(
+                      width: 24,
+                      height: 24,
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(7),
+                      ),
+                      child: Center(
+                        child: Text(
+                          '+',
+                          style: GoogleFonts.dmSans(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w800,
+                            color: const Color(0xFF0E9B83),
+                            height: 1.0,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                // Pharmacy Name, Address, Rating
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          if (isClosest) ...[
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+                              margin: const EdgeInsets.only(right: 6),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF0E9B83),
+                                borderRadius: BorderRadius.circular(5),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Icon(Icons.star, size: 8, color: Colors.white),
+                                  const SizedBox(width: 2),
+                                  Text(
+                                    'ENG YAQIN',
+                                    style: GoogleFonts.dmSans(
+                                      fontSize: 7.5,
+                                      fontWeight: FontWeight.w800,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
+                            decoration: BoxDecoration(
+                              color: stock.isOpen24
+                                  ? const Color(0xFFE3F8EE)
+                                  : const Color(0xFFF1F5F4),
+                              borderRadius: BorderRadius.circular(5),
+                            ),
+                            child: Text(
+                              stock.isOpen24 ? '24/7 OCHIQ' : stock.workingHours,
+                              style: GoogleFonts.dmSans(
+                                fontSize: 8.5,
+                                fontWeight: FontWeight.w800,
+                                letterSpacing: 0.4,
+                                color: stock.isOpen24
+                                    ? const Color(0xFF07966E)
+                                    : const Color(0xFF5B7D77),
+                              ),
+                            ),
+                          ),
+                          const Spacer(),
+                          // Rating
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(Icons.star_rounded, size: 13, color: Color(0xFFF59E0B)),
+                              const SizedBox(width: 2),
+                              Text(
+                                stock.rating,
+                                style: GoogleFonts.dmSans(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w700,
+                                  color: const Color(0xFF173C43),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 3),
+                      Text(
+                        stock.pharmacyName,
+                        style: GoogleFonts.manrope(
+                          fontSize: 14.5,
+                          fontWeight: FontWeight.w800,
+                          color: const Color(0xFF173C43),
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        stock.address,
+                        style: GoogleFonts.dmSans(
+                          fontSize: 11,
+                          color: const Color(0xFF758B8E),
+                          fontWeight: FontWeight.w500,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+
+            const SizedBox(height: 12),
+            Container(height: 1, color: const Color(0xFFF0F5F3)),
+            const SizedBox(height: 10),
+
+            // Bottom Row: Price, Stock, and "Xaritada ochish" Action Button
+            Row(
+              children: [
+                // Price & Stock
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      stock.priceStr,
+                      style: GoogleFonts.manrope(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w800,
+                        color: const Color(0xFF0E9B83),
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFEBF7F2),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Text(
+                            'Mavjud: ${stock.stockCount} dona',
+                            style: GoogleFonts.dmSans(
+                              fontSize: 9.5,
+                              fontWeight: FontWeight.w700,
+                              color: const Color(0xFF0D8A74),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          '${stock.distanceStr} · ${stock.walkEta}',
+                          style: GoogleFonts.dmSans(
+                            fontSize: 10.5,
+                            fontWeight: FontWeight.w500,
+                            color: const Color(0xFF758B8E),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+                const Spacer(),
+                // Action Button: Xaritada ochish
+                ElevatedButton.icon(
+                  onPressed: openInMap,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF0E9B83),
+                    foregroundColor: Colors.white,
+                    elevation: 0,
+                    padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 9),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  icon: const Icon(CupertinoIcons.location_fill, size: 13),
+                  label: Text(
+                    'Xaritada ochish',
+                    style: GoogleFonts.dmSans(
+                      fontSize: 11.5,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }

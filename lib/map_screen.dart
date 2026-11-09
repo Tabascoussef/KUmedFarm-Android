@@ -9,6 +9,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:yandex_mapkit/yandex_mapkit.dart';
 
 import 'app_locale.dart';
+import 'home_screen.dart';
 import 'services/location_service.dart';
 
 class PharmacyItem {
@@ -97,12 +98,21 @@ class MapScreen extends StatefulWidget {
   final VoidCallback? onBack;
   const MapScreen({super.key, this.onBack});
 
+  static final ValueNotifier<Map<String, dynamic>?> externalFocusPharmacy =
+      ValueNotifier<Map<String, dynamic>?>(null);
+
+  static void focusOnPharmacy(Map<String, dynamic> data) {
+    externalFocusPharmacy.value = data;
+    HomeScreen.switchToTab(1);
+  }
+
   @override
   State<MapScreen> createState() => _MapScreenState();
 }
 
 class _MapScreenState extends State<MapScreen>
     with TickerProviderStateMixin {
+  String? _searchedMedicineContext;
   late AnimationController _pulseController;
   late Animation<double> _pulseAnimation;
   late AnimationController _routeDashController;
@@ -180,6 +190,12 @@ class _MapScreenState extends State<MapScreen>
     _selected = _pharmacies.first;
 
     LocationService.instance.currentLocation.addListener(_onGlobalLocationChanged);
+    MapScreen.externalFocusPharmacy.addListener(_handleExternalFocus);
+    if (MapScreen.externalFocusPharmacy.value != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _handleExternalFocus();
+      });
+    }
 
     final isMobile = !kIsWeb &&
         (defaultTargetPlatform == TargetPlatform.android ||
@@ -328,11 +344,15 @@ class _MapScreenState extends State<MapScreen>
       );
     } catch (_) {}
 
-    final target = _userLocation != null
-        ? Point(latitude: _userLocation!.latitude, longitude: _userLocation!.longitude)
-        : Point(latitude: _selected.latitude, longitude: _selected.longitude);
+    if (MapScreen.externalFocusPharmacy.value != null) {
+      _handleExternalFocus();
+    } else {
+      final target = _userLocation != null
+          ? Point(latitude: _userLocation!.latitude, longitude: _userLocation!.longitude)
+          : Point(latitude: _selected.latitude, longitude: _selected.longitude);
 
-    await _moveToPoint(target, zoom: 15.0);
+      await _moveToPoint(target, zoom: 15.0);
+    }
   }
 
   Future<void> _moveToPoint(Point target, {double zoom = 15.0}) async {
@@ -749,6 +769,68 @@ class _MapScreenState extends State<MapScreen>
     return list;
   }
 
+  void _handleExternalFocus() async {
+    final data = MapScreen.externalFocusPharmacy.value;
+    if (data == null || !mounted) return;
+
+    final double lat = (data['lat'] as num).toDouble();
+    final double lng = (data['lng'] as num).toDouble();
+    final String name = data['name']?.toString() ?? 'Dorixona';
+    final String address = data['address']?.toString() ?? 'Toshkent shahri';
+    final String phone = data['phone']?.toString() ?? '+998 71 200 00 24';
+    final String rating = data['rating']?.toString() ?? '4.9';
+    final bool is24 = data['is247'] == true;
+    final String hours = data['hours']?.toString() ?? (is24 ? '24 soat ochiq' : '08:00 - 23:00');
+
+    final userLat = _userLocation?.latitude ??
+        LocationService.instance.currentLocation.value?.latitude ??
+        41.3111;
+    final userLng = _userLocation?.longitude ??
+        LocationService.instance.currentLocation.value?.longitude ??
+        69.2797;
+    final meters = LocationService.instance.calculateDistance(userLat, userLng, lat, lng);
+
+    _searchedMedicineContext = data['medicineContext']?.toString();
+
+    final item = PharmacyItem(
+      id: 'focus_${DateTime.now().millisecondsSinceEpoch}',
+      name: name,
+      address: address,
+      phone: phone,
+      latitude: lat,
+      longitude: lng,
+      rating: rating,
+      isOpen24h: is24,
+      isClosed: false,
+      workingHours: hours,
+      stockCount: data['stockCount'] ?? 4200,
+      mapX: 300,
+      mapY: 300,
+      distanceMeters: meters,
+      distance: LocationService.instance.formatDistance(meters),
+      eta: _isDrivingMode
+          ? LocationService.instance.formatDriveTime(meters)
+          : LocationService.instance.formatWalkTime(meters),
+      isClosest: true,
+    );
+
+    final existingIdx = _pharmacies.indexWhere((p) =>
+        (p.latitude - lat).abs() < 0.0005 && (p.longitude - lng).abs() < 0.0005);
+    if (existingIdx != -1) {
+      _selected = _pharmacies[existingIdx];
+    } else {
+      _pharmacies.insert(0, item);
+      _selected = item;
+    }
+
+    _tappedPointPlacemark = null;
+    _cachedMapObjects = null;
+    setState(() {});
+
+    final target = Point(latitude: lat, longitude: lng);
+    await _moveToPoint(target, zoom: 16.5);
+  }
+
   void _onGlobalLocationChanged() {
     final loc = LocationService.instance.currentLocation.value;
     if (loc != null && mounted) {
@@ -767,6 +849,7 @@ class _MapScreenState extends State<MapScreen>
 
   @override
   void dispose() {
+    MapScreen.externalFocusPharmacy.removeListener(_handleExternalFocus);
     LocationService.instance.currentLocation.removeListener(_onGlobalLocationChanged);
     _reverseGeocodeDebounce?.cancel();
     _pulseController.dispose();
@@ -1581,6 +1664,36 @@ class _MapScreenState extends State<MapScreen>
                                   ),
                                 ],
                               ),
+                              if (_searchedMedicineContext != null) ...[
+                                const SizedBox(height: 6),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3.5),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFFE8F8F4),
+                                    borderRadius: BorderRadius.circular(8),
+                                    border: Border.all(color: const Color(0xFF0E9B83).withValues(alpha: 0.35)),
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      const Icon(CupertinoIcons.capsule_fill, size: 12, color: Color(0xFF0E9B83)),
+                                      const SizedBox(width: 4),
+                                      Flexible(
+                                        child: Text(
+                                          _searchedMedicineContext!,
+                                          style: GoogleFonts.dmSans(
+                                            fontSize: 10.5,
+                                            fontWeight: FontWeight.w700,
+                                            color: const Color(0xFF0E9B83),
+                                          ),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
                             ],
                           ),
                         ),
