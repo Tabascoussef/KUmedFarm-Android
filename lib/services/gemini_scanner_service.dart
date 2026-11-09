@@ -356,7 +356,7 @@ Iltimos, natijani FAQAT toza JSON formatida bering (hech qanday markdown prefiks
     List<Map<String, String>> previousMessages = const [],
   }) async* {
     final systemPrompt = '''
-Siz "KUmedFarm" mobil ilovasining aqlli AI maslahatchisisiz.
+Siz "KUAFmedFarm" mobil ilovasining aqlli AI maslahatchisisiz.
 Kontekst ma'lumotlari:
 $medicineContext
 

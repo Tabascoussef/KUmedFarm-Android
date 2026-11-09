@@ -387,7 +387,7 @@ class _LoginScreenState extends State<LoginScreen> {
                               fontSize: 26, fontWeight: FontWeight.w800),
                           children: [
                             TextSpan(
-                              text: 'KUmedFarm',
+                              text: 'KUAFmedFarm',
                               style: TextStyle(
                                 color: p.text,
                                 fontWeight: FontWeight.w800,
@@ -430,7 +430,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 const SizedBox(height: 4),
                 Text(
                   _isRegister
-                      ? "KUmedFarm ekotizimida ro'yxatdan o'ting"
+                      ? "KUAFmedFarm ekotizimida ro'yxatdan o'ting"
                       : "Hisobingizga kiring",
                   style: TextStyle(
                     fontSize: 13,

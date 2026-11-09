@@ -47,7 +47,11 @@ class ApiService {
   }
 
   File _getAuthCacheFile() {
-    return File('${Directory.systemTemp.path}/kumed_auth_session.json');
+    final newFile = File('${Directory.systemTemp.path}/kuaf_auth_session.json');
+    if (newFile.existsSync()) return newFile;
+    final oldFile = File('${Directory.systemTemp.path}/kumed_auth_session.json');
+    if (oldFile.existsSync()) return oldFile;
+    return newFile;
   }
 
   /// Initialize and restore authenticated user session from device memory/disk
@@ -68,7 +72,7 @@ class ApiService {
                   .replaceAll('(offline rejim)', '')
                   .replaceAll('(offline)', '')
                   .trim();
-              if (name == 'KUmedFarm Admin' || name.isEmpty) {
+              if (name == 'KUAFmedFarm Admin' || name == 'KUmedFarm Admin' || name.isEmpty) {
                 name = 'Aziza Usmanova';
               }
               _currentUser!['name'] = name;
@@ -286,11 +290,11 @@ class ApiService {
     if (res['is_offline'] == true &&
         (login == 'admin' || login == 'demo') &&
         password == '1234') {
-      _authToken = 'kumedfarm_mobile_demo_token_secure';
+      _authToken = 'kuafmedfarm_mobile_demo_token_secure';
       _currentUser = {
         'id': 1,
         'name': 'Aziza Usmanova',
-        'email': 'admin@kumedfarm.uz',
+        'email': 'admin@kuafmedfarm.uz',
         'role': 'Bosh farmatsevt',
         'city': 'Tashkent',
         'phone': '+998 90 123 45 67',
@@ -334,7 +338,7 @@ class ApiService {
 
     // Offline demo fallback if backend server is not running
     if (res['is_offline'] == true) {
-      _authToken = 'kumedfarm_mobile_registered_token';
+      _authToken = 'kuafmedfarm_mobile_registered_token';
       _currentUser = <String, dynamic>{
         'id': 2,
         'name': name,

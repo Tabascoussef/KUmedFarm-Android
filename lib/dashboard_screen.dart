@@ -633,7 +633,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         .replaceAll('(offline rejim)', '')
         .replaceAll('(offline)', '')
         .trim();
-    final userName = (cleaned == 'KUmedFarm Admin' || cleaned.isEmpty)
+    final userName = (cleaned == 'KUAFmedFarm Admin' || cleaned == 'KUmedFarm Admin' || cleaned.isEmpty)
         ? 'Aziza Usmanova'
         : cleaned;
 

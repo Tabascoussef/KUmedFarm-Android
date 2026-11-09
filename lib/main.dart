@@ -17,17 +17,17 @@ void main() {
   // Start real-time background synchronization with web backend
   ApiService.instance.startRealtimeSync();
 
-  runApp(const KUmedFarmApp());
+  runApp(const KUAFmedFarmApp());
 }
 
-class KUmedFarmApp extends StatefulWidget {
-  const KUmedFarmApp({super.key});
+class KUAFmedFarmApp extends StatefulWidget {
+  const KUAFmedFarmApp({super.key});
 
   @override
-  State<KUmedFarmApp> createState() => _KUmedFarmAppState();
+  State<KUAFmedFarmApp> createState() => _KUAFmedFarmAppState();
 }
 
-class _KUmedFarmAppState extends State<KUmedFarmApp>
+class _KUAFmedFarmAppState extends State<KUAFmedFarmApp>
     with WidgetsBindingObserver {
   DateTime? _pausedTime;
   bool _isShowingSplash = true; // initially splash is showing on cold start
@@ -88,7 +88,7 @@ class _KUmedFarmAppState extends State<KUmedFarmApp>
         valueListenable: languageNotifier,
         builder: (context, lang, _) => MaterialApp(
           navigatorKey: appNavigatorKey,
-          title: 'KUmedFarm',
+          title: 'KUAFmedFarm',
           debugShowCheckedModeBanner: false,
           theme: buildTheme(Brightness.light),
           darkTheme: buildTheme(Brightness.dark),

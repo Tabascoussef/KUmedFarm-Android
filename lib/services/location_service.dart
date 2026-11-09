@@ -358,7 +358,7 @@ class LocationService {
       );
 
       final request = await client.getUrl(uri);
-      request.headers.set('User-Agent', 'KUmedFarmMobileApp/1.0 (contact@kumedfarm.uz)');
+      request.headers.set('User-Agent', 'KUAFmedFarmMobileApp/1.0 (contact@kuafmedfarm.uz)');
       request.headers.set('Accept-Language', 'uz-Latn, uz, en');
 
       final response = await request.close().timeout(const Duration(seconds: 4));
@@ -588,7 +588,7 @@ class LocationService {
       );
 
       final req = await client.getUrl(uri);
-      req.headers.set('User-Agent', 'KUmedFarmMobileApp/1.0 (contact@kumedfarm.uz)');
+      req.headers.set('User-Agent', 'KUAFmedFarmMobileApp/1.0 (contact@kuafmedfarm.uz)');
 
       final res = await req.close().timeout(const Duration(seconds: 4));
       if (res.statusCode == 200) {
@@ -652,7 +652,7 @@ class LocationService {
         );
 
         final req = await client.getUrl(uri);
-        req.headers.set('User-Agent', 'KUmedFarmMobileApp/1.0 (contact@kumedfarm.uz)');
+        req.headers.set('User-Agent', 'KUAFmedFarmMobileApp/1.0 (contact@kuafmedfarm.uz)');
         req.headers.set('Accept-Language', 'uz-Latn, uz, en');
 
         final res = await req.close().timeout(const Duration(seconds: 4));

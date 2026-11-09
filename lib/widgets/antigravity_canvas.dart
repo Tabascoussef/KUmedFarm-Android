@@ -51,7 +51,7 @@ class AntigravityParticle {
     final type = types[rng.nextInt(types.length)];
     final radius = 22.0 + rng.nextDouble() * 26.0;
 
-    // Rich modern teal/emerald/cyan palette matching KUmedFarm
+    // Rich modern teal/emerald/cyan palette matching KUAFmedFarm
     final palettes = [
       [const Color(0xFF0E9B83), const Color(0xFF2DD4BF)],
       [const Color(0xFF10B981), const Color(0xFF34D399)],
@@ -62,7 +62,7 @@ class AntigravityParticle {
     ];
     final selectedPalette = palettes[rng.nextInt(palettes.length)];
 
-    final labels = ['KUmed', 'Rx', 'B12', 'Omega-3', '24/7', '75mg', 'Cardio', 'Pro'];
+    final labels = ['KUAFmed', 'Rx', 'B12', 'Omega-3', '24/7', '75mg', 'Cardio', 'Pro'];
     final label = (type == AntigravityItemType.card || type == AntigravityItemType.pill)
         ? labels[rng.nextInt(labels.length)]
         : null;

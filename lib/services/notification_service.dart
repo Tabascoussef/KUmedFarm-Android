@@ -89,9 +89,17 @@ class NotificationService {
   Future<File> _getCacheFile() async {
     try {
       final dir = await getApplicationDocumentsDirectory();
-      return File('${dir.path}/kumed_notifications_permanent.json');
+      final newFile = File('${dir.path}/kuaf_notifications_permanent.json');
+      if (await newFile.exists()) return newFile;
+      final oldFile = File('${dir.path}/kumed_notifications_permanent.json');
+      if (await oldFile.exists()) return oldFile;
+      return newFile;
     } catch (_) {
-      return File('${Directory.systemTemp.path}/kumed_notifications_cache.json');
+      final newTemp = File('${Directory.systemTemp.path}/kuaf_notifications_cache.json');
+      if (newTemp.existsSync()) return newTemp;
+      final oldTemp = File('${Directory.systemTemp.path}/kumed_notifications_cache.json');
+      if (oldTemp.existsSync()) return oldTemp;
+      return newTemp;
     }
   }
 
@@ -140,7 +148,7 @@ class NotificationService {
           id: 'init_welcome',
           colorType: 'mint',
           title: 'Xush kelibsiz!',
-          sub: 'KUmedFarm ilovasi',
+          sub: 'KUAFmedFarm ilovasi',
           body: 'Ilovaga muvaffaqiyatli ulandingiz. Retsept yoki dorilarni AI orqali skanerlang va dorixonalarni xaritada toping.',
           time: '09:00',
           type: 'system',

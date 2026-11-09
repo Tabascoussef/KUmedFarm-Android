@@ -69,7 +69,7 @@ class S {
       'health_tip_body': 'Kuniga 15-20 daqiqa piyoda sayr qilish qon bosimini me\'yorda tutadi va kayfiyatni ko\'taradi.',
 
       // Shop
-      'shop_store': 'KUMEFARM DO\'KONI',
+      'shop_store': 'KUAFMEDFARM DO\'KONI',
       'shop_essentials': 'Salomatlik vositalari',
       'cat_all': 'Barchasi',
       'cat_vitamins': 'Vitaminlar',
@@ -212,7 +212,7 @@ class S {
       'health_tip_body': 'Ежедневная 15-минутная прогулка укрепляет сердечно-сосудистую систему и улучшает самочувствие.',
 
       // Shop
-      'shop_store': 'МАГАЗИН KUMEFARM',
+      'shop_store': 'МАГАЗИН KUAFMEDFARM',
       'shop_essentials': 'Товары для здоровья',
       'cat_all': 'Все',
       'cat_vitamins': 'Витамины',
@@ -355,7 +355,7 @@ class S {
       'health_tip_body': 'A 15-minute daily walk can improve cardiovascular health and boost your overall mood.',
 
       // Shop
-      'shop_store': 'KUMEFARM STORE',
+      'shop_store': 'KUAFMEDFARM STORE',
       'shop_essentials': 'Health essentials',
       'cat_all': 'All',
       'cat_vitamins': 'Vitamins',

@@ -4,7 +4,7 @@ import 'package:flutter_application_1/splash_screen.dart';
 
 void main() {
   testWidgets('App starts and shows splash screen', (WidgetTester tester) async {
-    await tester.pumpWidget(const KUmedFarmApp());
+    await tester.pumpWidget(const KUAFmedFarmApp());
     expect(find.byType(SplashScreen), findsOneWidget);
   });
 }

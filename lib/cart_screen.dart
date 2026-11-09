@@ -491,7 +491,7 @@ class _CartScreenState extends State<CartScreen> {
 
                               final sheetNav = Navigator.of(ctx);
                               await ApiService.instance.createOrder(
-                                pharmacyName: 'KUmeFarm Store',
+                                pharmacyName: 'KUAFmedFarm Store',
                                 totalAmount: total.toDouble(),
                                 items: itemsPayload,
                                 notes: noteString,

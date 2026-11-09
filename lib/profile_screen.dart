@@ -49,7 +49,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 .replaceAll('(offline)', '')
                 .replaceAll('(Offline)', '')
                 .trim();
-            if (name == 'KUmedFarm Admin' || name.isEmpty) {
+            if (name == 'KUAFmedFarm Admin' || name == 'KUmedFarm Admin' || name.isEmpty) {
               name = 'Aziza Usmanova';
             }
             _userName = name;
@@ -592,7 +592,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               iconBg: const Color(0xFFE1EFFC),
               iconColor: const Color(0xFF2782CC),
               title: 'Telegram yordam boti',
-              subtitle: '@kumedfarm_support',
+              subtitle: '@kuafmedfarm_support',
               onTap: () async {
                 final uri = Uri.parse('https://t.me/telegram');
                 if (await canLaunchUrl(uri)) {
@@ -1340,7 +1340,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
               Center(
                 child: Text(
-                  'KUmeFarm Medical App v2.4.0',
+                  'KUAFmedFarm Medical App v2.4.0',
                   style: GoogleFonts.dmSans(
                     fontSize: 10,
                     color: const Color(0xFF9AACAB),
