@@ -2189,8 +2189,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
     return ValueListenableBuilder<UserLocation?>(
       valueListenable: LocationService.instance.currentLocation,
       builder: (context, userLoc, _) {
-        final double userLat = userLoc?.latitude ?? 41.3111;
-        final double userLng = userLoc?.longitude ?? 69.2797;
+        final double userLat = userLoc?.latitude ?? LocationService.defaultLat;
+        final double userLng = userLoc?.longitude ?? LocationService.defaultLng;
 
         final List<Map<String, dynamic>> sourceList = _livePharmacies.isNotEmpty
             ? _livePharmacies

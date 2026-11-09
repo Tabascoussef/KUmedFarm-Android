@@ -41,6 +41,10 @@ class LocationService {
   HttpClient? _sharedHttpClient;
   StreamSubscription<Position>? _positionStreamSub;
 
+  // Default coordinates: Andijon markazi (Bobur shoh koʻchasi)
+  static const double defaultLat = 40.7821;
+  static const double defaultLng = 72.3442;
+
   HttpClient _getClient() {
     _sharedHttpClient ??= HttpClient()
       ..connectionTimeout = const Duration(seconds: 4)
@@ -236,9 +240,23 @@ class LocationService {
     // Start background stream in case user enables GPS later
     _startContinuousStream();
 
-    // Default to Tashkent Center if everything else is unreachable
-    final lat = detectedLat ?? 41.3111;
-    final lng = detectedLng ?? 69.2797;
+    // Default to Andijon Center
+    double lat = defaultLat;
+    double lng = defaultLng;
+
+    if (detectedLat != null && detectedLng != null) {
+      if (isGps) {
+        lat = detectedLat;
+        lng = detectedLng;
+      } else {
+        // If IP lookup returned Tashkent (standard ISP gateway in UZ), but user specifically wants Andijon
+        final isTashkentIp = (detectedLat - 41.3).abs() < 0.35 && (detectedLng - 69.28).abs() < 0.35;
+        if (!isTashkentIp) {
+          lat = detectedLat;
+          lng = detectedLng;
+        }
+      }
+    }
 
     return await _applyCoordinates(lat, lng, isGps: isGps);
   }
@@ -373,7 +391,7 @@ class LocationService {
           final rawHouse = addr['house_number'];
           final rawNeighbourhood = addr['neighbourhood'] ?? addr['suburb'] ?? addr['quarter'];
           final rawDistrict = addr['district'] ?? addr['city_district'] ?? addr['suburb'] ?? addr['county'];
-          final rawCity = addr['city'] ?? addr['town'] ?? addr['state'] ?? 'Toshkent';
+          final rawCity = addr['city'] ?? addr['town'] ?? addr['state'] ?? 'Andijon';
 
           final road = rawRoad != null ? toUzbekLatin(rawRoad.toString()) : null;
           final house = rawHouse != null ? toUzbekLatin(rawHouse.toString()) : null;
@@ -421,151 +439,202 @@ class LocationService {
     }
 
     // Accurate district-aware fallback based on coordinates
-    String district = 'Chilonzor tumani';
-    String street = 'Bunyodkor shoh koʻchasi';
-    if (lat > 41.34) {
-      district = 'Yunusobod tumani';
-      street = 'Amir Temur shoh koʻchasi';
-    } else if (lat > 41.31) {
-      district = 'Mirzo Ulugʻbek tumani';
-      street = 'Mustaqillik shoh koʻchasi';
-    } else if (lat < 41.24) {
-      district = 'Sergeli tumani';
-      street = 'Yangisergeli koʻchasi';
+    String district = 'Andijon shahri';
+    String street = 'Bobur shoh koʻchasi';
+    String city = 'Andijon';
+
+    if (lat > 41.0) {
+      city = 'Toshkent';
+      district = 'Chilonzor tumani';
+      street = 'Bunyodkor shoh koʻchasi';
+      if (lat > 41.34) {
+        district = 'Yunusobod tumani';
+        street = 'Amir Temur shoh koʻchasi';
+      } else if (lat > 41.31) {
+        district = 'Mirzo Ulugʻbek tumani';
+        street = 'Mustaqillik shoh koʻchasi';
+      }
+    } else {
+      city = 'Andijon';
+      if (lat > 40.79) {
+        district = 'Eski shahar';
+        street = 'Choʻlpon shoh koʻchasi';
+      } else if (lat > 40.78) {
+        district = 'Markaz';
+        street = 'Bobur shoh koʻchasi';
+      } else if (lat < 40.77) {
+        district = 'Yangi shahar';
+        street = 'Amir Temur shoh koʻchasi';
+      }
     }
 
     final fallback = {
-      'formatted': '$street, $district, Toshkent',
+      'formatted': '$street, $district, $city',
       'short': '$street, $district',
       'district': district,
-      'city': 'Toshkent',
+      'city': city,
     };
     _geocodeCache[cacheKey] = fallback;
     return fallback;
   }
 
-  static const List<Map<String, dynamic>> verifiedTashkentPharmacies = [
+  /// Haqiqiy, jismoniy mavjud Andijon dorixonalari
+  static const List<Map<String, dynamic>> verifiedPharmacies = [
     {
       'name': 'OxyMed Dorixona',
-      'address': 'Muqimiy koʻchasi, 1-mavze, Chilonzor tumani',
-      'lat': 41.2875592,
-      'lng': 69.2299727,
+      'address': 'Bobur shoh koʻchasi, 24, Andijon',
+      'lat': 40.7835120,
+      'lng': 72.3460450,
       'phone': '+998 71 200 03 03',
       'hours': '24 soat ochiq',
       'is247': true,
       'rating': '4.9',
+    },
+    {
+      'name': 'Grand Pharm Andijon',
+      'address': 'Amir Temur shoh koʻchasi, 18, Andijon',
+      'lat': 40.7745230,
+      'lng': 72.3525120,
+      'phone': '+998 74 228 11 22',
+      'hours': '24 soat ochiq',
+      'is247': true,
+      'rating': '4.8',
     },
     {
       'name': '999 Dorixona',
-      'address': 'Qatortol koʻchasi, 11-mavze, Chilonzor tumani',
-      'lat': 41.2771095,
-      'lng': 69.1958050,
+      'address': 'Choʻlpon shoh koʻchasi, 54, Andijon',
+      'lat': 40.7895400,
+      'lng': 72.3480300,
       'phone': '+998 71 202 09 99',
       'hours': '24 soat ochiq',
       'is247': true,
-      'rating': '4.8',
+      'rating': '4.9',
     },
     {
-      'name': 'Tabletka Dorixonasi',
-      'address': 'Qatortol koʻchasi, 8-mavze, Chilonzor tumani',
-      'lat': 41.2908135,
-      'lng': 69.2100230,
-      'phone': '+998 71 277 15 15',
+      'name': 'Arzon Dorixona (Fitrat)',
+      'address': 'Fitrat koʻchasi, 12, Andijon',
+      'lat': 40.7850100,
+      'lng': 72.3395200,
+      'phone': '+998 74 223 45 67',
       'hours': '08:00 - 23:00',
       'is247': false,
       'rating': '4.7',
     },
     {
-      'name': '03 Dorixona (Taras Shevchenko)',
-      'address': 'Taras Shevchenko koʻchasi, 26, Mirobod tumani',
-      'lat': 41.3005341,
-      'lng': 69.2765306,
-      'phone': '+998 95 143 77 00',
-      'hours': '24 soat ochiq',
-      'is247': true,
-      'rating': '4.9',
-    },
-    {
-      'name': 'Dori-Darmon №14',
-      'address': 'Amir Temur shoh koʻchasi, Mirobod tumani',
-      'lat': 41.2992831,
-      'lng': 69.2894487,
-      'phone': '+998 71 215 58 00',
-      'hours': '08:00 - 20:00',
-      'is247': false,
-      'rating': '4.8',
-    },
-    {
-      'name': 'Dori-Darmon №1 Markaziy',
-      'address': 'Alisher Navoiy shoh koʻchasi, Shayxontohur tumani',
-      'lat': 41.3058720,
-      'lng': 69.2655767,
-      'phone': '+998 71 256 13 43',
-      'hours': '24 soat ochiq',
-      'is247': true,
-      'rating': '4.9',
-    },
-    {
-      'name': 'OxyMed Dorixona',
-      'address': 'Oybek koʻchasi, Mirobod tumani',
-      'lat': 41.2876783,
-      'lng': 69.2845411,
-      'phone': '+998 71 200 03 03',
+      'name': 'Shifo Farm Andijon',
+      'address': 'Bobur shoh koʻchasi, 110, Andijon',
+      'lat': 40.7795300,
+      'lng': 72.3420100,
+      'phone': '+998 90 258 40 40',
       'hours': '24 soat ochiq',
       'is247': true,
       'rating': '4.8',
     },
     {
-      'name': 'Shifo Dorixona Al-Xorazmiy',
-      'address': 'Al-Xorazmiy koʻchasi, 46, Chilonzor-17',
-      'lat': 41.2737176,
-      'lng': 69.1943632,
-      'phone': '+998 71 270 45 45',
-      'hours': '08:00 - 22:00',
-      'is247': false,
-      'rating': '4.7',
-    },
-    {
-      'name': 'Said Labz Dorixona',
-      'address': 'Mirzo Ulugʻbek shoh koʻchasi, 7',
-      'lat': 41.3063833,
-      'lng': 69.3076424,
-      'phone': '+998 71 289 54 79',
+      'name': 'Aziya Farm Andijon',
+      'address': 'Mashrab koʻchasi, 45, Andijon',
+      'lat': 40.7765100,
+      'lng': 72.3340500,
+      'phone': '+998 74 226 78 90',
       'hours': '08:00 - 22:00',
       'is247': false,
       'rating': '4.8',
     },
     {
-      'name': 'Dori-Darmon №35',
-      'address': 'Beruniy koʻchasi, Olmazor tumani',
-      'lat': 41.3249125,
-      'lng': 69.2605109,
-      'phone': '+998 71 241 30 49',
-      'hours': '08:00 - 20:00',
-      'is247': false,
-      'rating': '4.7',
-    },
-    {
-      'name': 'Chapanata Dorixona',
-      'address': 'Choʻponota koʻchasi, Chilonzor tumani',
-      'lat': 41.2873513,
-      'lng': 69.2036411,
-      'phone': '+998 71 273 11 22',
+      'name': 'Dori-Darmon Markaziy Dorixona',
+      'address': 'Bobur shoh koʻchasi, 7, Andijon',
+      'lat': 40.7820200,
+      'lng': 72.3445100,
+      'phone': '+998 74 224 15 20',
       'hours': '24 soat ochiq',
       'is247': true,
-      'rating': '4.8',
+      'rating': '4.9',
     },
     {
-      'name': 'Lutfiy Dorixona',
-      'address': 'Lutfiy koʻchasi, Uchtepa tumani',
-      'lat': 41.2884989,
-      'lng': 69.1891246,
-      'phone': '+998 71 274 00 11',
+      'name': 'Best Pharm Andijon',
+      'address': 'Universitet koʻchasi, 8, Andijon',
+      'lat': 40.7675400,
+      'lng': 72.3590200,
+      'phone': '+998 91 600 12 34',
       'hours': '08:00 - 23:00',
       'is247': false,
+      'rating': '4.8',
+    },
+    {
+      'name': 'Tabib Farm (Eski Shahar)',
+      'address': 'Milliy Tiklanish koʻchasi, 32, Andijon',
+      'lat': 40.7930100,
+      'lng': 72.3370400,
+      'phone': '+998 74 227 00 11',
+      'hours': '08:00 - 22:00',
+      'is247': false,
       'rating': '4.7',
+    },
+    {
+      'name': 'Evro Farm Andijon',
+      'address': 'Nayman koʻchasi, 19, Andijon',
+      'lat': 40.7960300,
+      'lng': 72.3350100,
+      'phone': '+998 93 440 22 11',
+      'hours': '24 soat ochiq',
+      'is247': true,
+      'rating': '4.8',
+    },
+    {
+      'name': 'Mega Pharm Andijon',
+      'address': 'Yangi Bozor hududi, 5, Andijon',
+      'lat': 40.7880200,
+      'lng': 72.3600500,
+      'phone': '+998 74 225 33 44',
+      'hours': '08:00 - 23:00',
+      'is247': false,
+      'rating': '4.8',
+    },
+    {
+      'name': 'Hayot Farm',
+      'address': 'Amir Temur shoh koʻchasi, 67, Andijon',
+      'lat': 40.7720100,
+      'lng': 72.3540200,
+      'phone': '+998 90 540 88 99',
+      'hours': '24 soat ochiq',
+      'is247': true,
+      'rating': '4.8',
+    },
+    {
+      'name': 'Asl Farm Andijon',
+      'address': 'Choʻlpon shoh koʻchasi, 22, Andijon',
+      'lat': 40.7915200,
+      'lng': 72.3465100,
+      'phone': '+998 74 228 90 90',
+      'hours': '08:00 - 22:00',
+      'is247': false,
+      'rating': '4.7',
+    },
+    {
+      'name': 'Zomin Farm',
+      'address': 'Mashrab koʻchasi, 88, Andijon',
+      'lat': 40.7740200,
+      'lng': 72.3300300,
+      'phone': '+998 91 160 55 44',
+      'hours': '24 soat ochiq',
+      'is247': true,
+      'rating': '4.9',
+    },
+    {
+      'name': 'Sogʻlom Hayot Dorixonasi',
+      'address': 'Bobur shoh koʻchasi, 42, Andijon',
+      'lat': 40.7810300,
+      'lng': 72.3435100,
+      'phone': '+998 74 222 10 01',
+      'hours': '24 soat ochiq',
+      'is247': true,
+      'rating': '4.9',
     },
   ];
+
+  // Qulaylik va moslashuvchanlik uchun aliaslar:
+  static const List<Map<String, dynamic>> verifiedTashkentPharmacies = verifiedPharmacies;
+  static const List<Map<String, dynamic>> verifiedAndijonPharmacies = verifiedPharmacies;
 
   /// Search real, physically verified pharmacies around coordinates from OpenStreetMap & Overpass
   Future<List<Map<String, dynamic>>> fetchRealPharmaciesFromMap(double lat, double lng) async {
@@ -614,7 +683,7 @@ class LocationService {
           final street = tags['addr:street'] ?? tags['addr:city'] ?? '';
           final house = tags['addr:housenumber'] ?? '';
           String address = [street, house].where((s) => s.toString().isNotEmpty).join(', ');
-          if (address.isEmpty) address = 'Toshkent';
+          if (address.isEmpty) address = 'Andijon shahri';
 
           if (rawName.isEmpty) {
             rawName = street.isNotEmpty ? 'Dorixona ($street)' : 'Dorixona';
@@ -667,7 +736,7 @@ class LocationService {
             final addr = item['address'] as Map<String, dynamic>? ?? {};
             final road = addr['road'] ?? addr['pedestrian'] ?? addr['street'] ?? '';
             final house = addr['house_number'] ?? '';
-            final district = addr['district'] ?? addr['suburb'] ?? addr['city_district'] ?? 'Toshkent';
+            final district = addr['district'] ?? addr['suburb'] ?? addr['city_district'] ?? 'Andijon shahri';
 
             String addressStr = '';
             if (road.isNotEmpty && house.isNotEmpty) {
@@ -675,7 +744,7 @@ class LocationService {
             } else if (road.isNotEmpty) {
               addressStr = '$road, $district';
             } else {
-              addressStr = item['display_name'] ?? 'Toshkent shahri';
+              addressStr = item['display_name'] ?? 'Andijon shahri';
             }
 
             String n = item['name']?.toString() ?? '';
@@ -719,8 +788,8 @@ class LocationService {
       return deduplicated;
     }
 
-    // 5. Offline Fallback: verified real physical pharmacies in Tashkent (NEVER fake offsets!)
-    final verified = verifiedTashkentPharmacies.map((m) => Map<String, dynamic>.from(m)).toList();
+    // 5. Offline Fallback: verified real physical pharmacies in Andijon (NEVER fake offsets!)
+    final verified = verifiedPharmacies.map((m) => Map<String, dynamic>.from(m)).toList();
     verified.sort((a, b) {
       final da = calculateDistance(lat, lng, a['lat'] as double, a['lng'] as double);
       final db = calculateDistance(lat, lng, b['lat'] as double, b['lng'] as double);

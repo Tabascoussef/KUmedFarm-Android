@@ -184,8 +184,8 @@ class _MapScreenState extends State<MapScreen>
 
     final initialLoc = LocationService.instance.currentLocation.value;
     _userLocation = initialLoc;
-    final initialLat = initialLoc?.latitude ?? 41.3111;
-    final initialLng = initialLoc?.longitude ?? 69.2797;
+    final initialLat = initialLoc?.latitude ?? LocationService.defaultLat;
+    final initialLng = initialLoc?.longitude ?? LocationService.defaultLng;
     _pharmacies.addAll(_getVerifiedRealPharmacies(initialLat, initialLng));
     _selected = _pharmacies.first;
 
@@ -384,10 +384,10 @@ class _MapScreenState extends State<MapScreen>
   Future<void> _onMapTap(Point point) async {
     final userLat = _userLocation?.latitude ??
         LocationService.instance.currentLocation.value?.latitude ??
-        41.3111;
+        LocationService.defaultLat;
     final userLng = _userLocation?.longitude ??
         LocationService.instance.currentLocation.value?.longitude ??
-        69.2797;
+        LocationService.defaultLng;
     final meters = LocationService.instance.calculateDistance(
       userLat,
       userLng,
@@ -463,10 +463,10 @@ class _MapScreenState extends State<MapScreen>
 
     final defaultLat = _userLocation?.latitude ??
         LocationService.instance.currentLocation.value?.latitude ??
-        41.3111;
+        LocationService.defaultLat;
     final defaultLng = _userLocation?.longitude ??
         LocationService.instance.currentLocation.value?.longitude ??
-        69.2797;
+        LocationService.defaultLng;
     final point = targetPoint ?? Point(latitude: defaultLat, longitude: defaultLng);
     final userLat = defaultLat;
     final userLng = defaultLng;
@@ -667,10 +667,10 @@ class _MapScreenState extends State<MapScreen>
     try {
       final userLat = _userLocation?.latitude ??
           LocationService.instance.currentLocation.value?.latitude ??
-          41.3111;
+          LocationService.defaultLat;
       final userLng = _userLocation?.longitude ??
           LocationService.instance.currentLocation.value?.longitude ??
-          69.2797;
+          LocationService.defaultLng;
 
       // 1. First priority: search REAL live pharmacies from OpenStreetMap around user's coordinates
       final realMapPharmacies = await LocationService.instance.fetchRealPharmaciesFromMap(userLat, userLng);
@@ -776,7 +776,7 @@ class _MapScreenState extends State<MapScreen>
     final double lat = (data['lat'] as num).toDouble();
     final double lng = (data['lng'] as num).toDouble();
     final String name = data['name']?.toString() ?? 'Dorixona';
-    final String address = data['address']?.toString() ?? 'Toshkent shahri';
+    final String address = data['address']?.toString() ?? 'Andijon shahri';
     final String phone = data['phone']?.toString() ?? '+998 71 200 00 24';
     final String rating = data['rating']?.toString() ?? '4.9';
     final bool is24 = data['is247'] == true;
@@ -784,10 +784,10 @@ class _MapScreenState extends State<MapScreen>
 
     final userLat = _userLocation?.latitude ??
         LocationService.instance.currentLocation.value?.latitude ??
-        41.3111;
+        LocationService.defaultLat;
     final userLng = _userLocation?.longitude ??
         LocationService.instance.currentLocation.value?.longitude ??
-        69.2797;
+        LocationService.defaultLng;
     final meters = LocationService.instance.calculateDistance(userLat, userLng, lat, lng);
 
     _searchedMedicineContext = data['medicineContext']?.toString();

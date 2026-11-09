@@ -345,10 +345,10 @@ class MedicineService {
   }) async {
     final uLat = userLat ??
         LocationService.instance.currentLocation.value?.latitude ??
-        41.3111;
+        LocationService.defaultLat;
     final uLng = userLng ??
         LocationService.instance.currentLocation.value?.longitude ??
-        69.2797;
+        LocationService.defaultLng;
 
     List<Map<String, dynamic>> pharmacies = availablePharmacies ?? [];
     if (pharmacies.isEmpty) {
